@@ -70,45 +70,45 @@ func (h *HandlerPromo) CreatePromo(ctx *gin.Context) {
 	})
 }
 
-// func (h *HandlerPromo) UpdatePromo(ctx *gin.Context) {
-// 	var updatePromo models.PromoModel
-// 	ID, _ := strconv.Atoi(ctx.Param("id"))
-// 	if err := ctx.ShouldBind(&updatePromo); err != nil {
-// 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-// 		return
-// 	}
-// 	err := h.RepositoryUpdatePromo(ID, &updatePromo)
-// 	if err != nil {
-// 		log.Fatalln(err)
-// 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-// 		return
-// 	}
-// 	ctx.JSON(http.StatusCreated, gin.H{
-// 		"message": "Promo successfully updated",
-// 	})
-// }
+func (h *HandlerPromo) UpdatePromo(ctx *gin.Context) {
+	var updatePromo models.PromoModel
+	ID, _ := strconv.Atoi(ctx.Param("id"))
+	if err := ctx.ShouldBind(&updatePromo); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	err := h.RepositoryUpdatePromo(ID, &updatePromo)
+	if err != nil {
+		log.Fatalln(err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusCreated, gin.H{
+		"message": "Promo successfully updated",
+	})
+}
 
-// func (h *HandlerPromo) DeletePromo(ctx *gin.Context) {
-// 	ID, _ := strconv.Atoi(ctx.Param("id"))
-// 	result, err := h.RepositoryDeletePromo(ID)
-// 	if err != nil {
-// 		log.Print(err)
-// 		ctx.JSON(http.StatusInternalServerError, err)
-// 		return
-// 	}
-// 	rowsAffected, err := result.RowsAffected()
-// 	if err != nil {
-// 		log.Print(err)
-// 		ctx.JSON(http.StatusInternalServerError, err)
-// 		return
-// 	}
-// 	if rowsAffected == 0 {
-// 		ctx.JSON(http.StatusNotFound, gin.H{
-// 			"message": "Product not found",
-// 		})
-// 		return
-// 	}
-// 	ctx.JSON(http.StatusOK, gin.H{
-// 		"message": "Product successfully deleted",
-// 	})
-// }
+func (h *HandlerPromo) DeletePromo(ctx *gin.Context) {
+	ID, _ := strconv.Atoi(ctx.Param("id"))
+	result, err := h.RepositoryDeletePromo(ID)
+	if err != nil {
+		log.Print(err)
+		ctx.JSON(http.StatusInternalServerError, err)
+		return
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		log.Print(err)
+		ctx.JSON(http.StatusInternalServerError, err)
+		return
+	}
+	if rowsAffected == 0 {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"message": "Product not found",
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Product successfully deleted",
+	})
+}

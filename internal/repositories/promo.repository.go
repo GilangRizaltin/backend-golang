@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"Backend_Golang/internal/models"
+	"database/sql"
 	"strconv"
 	"strings"
 
@@ -55,10 +56,40 @@ func (r *PromoRepository) RepositoryCreatePromo(body *models.PromoModel) error {
 	return err
 }
 
-// func (r *PromoRepository) RepositoryUpdatePromo(productID int, body *models.PromoModel) error {
+func (r *PromoRepository) RepositoryUpdatePromo(productID int, body *models.PromoModel) error {
+	var conditional []string
+	query := `
+        UPDATE promos
+        SET `
+	params := make(map[string]interface{})
+	if body.Promo_code != "" {
+		conditional = append(conditional, "promo_code = :Promo_code")
+		params["Promo_code"] = body.Promo_code
+	}
+	if body.Ended_at != nil {
+		conditional = append(conditional, "ended_at = :Ended_at")
+		params["Ended_at"] = body.Ended_at
+	}
+	if len(conditional) == 1 {
+		query += conditional[0] + ", "
+	}
+	if len(conditional) > 1 {
+		query += strings.Join(conditional, ", ")
+	}
+	params["Id"] = productID
+	query += ` update_at = NOW() WHERE id = :Id`
+	_, err := r.NamedExec(query, params)
+	// fmt.Println(query)
+	return err
+}
 
-// }
-
-// func (r *PromoRepository) RepositoryDeletePromo(productID int) (sql.Result, error) {
-
-// }
+func (r *PromoRepository) RepositoryDeletePromo(productID int) (sql.Result, error) {
+	query := `
+        DELETE FROM products
+        WHERE
+            id = $1
+		returning product_name;
+    `
+	result, err := r.Exec(query, productID)
+	return result, err
+}
