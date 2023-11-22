@@ -88,10 +88,17 @@ func (h *HandlerProduct) GetProduct(ctx *gin.Context) {
 		return
 	}
 	url := ctx.Request.URL.RawQuery
+	pages := ctx.Query("page")
+	var nextPage string
+	var prevPage string
 	lastPage := int(math.Ceil(float64(data[0]) / 6))
 	linkPage := "localhost:6121/product?" + url
-	nextPage := linkPage[:len(linkPage)-1] + strconv.Itoa(page+1)
-	prevPage := linkPage[:len(linkPage)-1] + strconv.Itoa(page-1)
+	nextPage = linkPage[:len(linkPage)-1] + strconv.Itoa(page+1)
+	prevPage = linkPage[:len(linkPage)-1] + strconv.Itoa(page-1)
+	if pages == "" {
+		nextPage = linkPage + "&page=" + strconv.Itoa(page+1)
+		prevPage = linkPage + "&page=" + strconv.Itoa(page-1)
+	}
 	if page == int(lastPage) {
 		nextPage = "null"
 	}
