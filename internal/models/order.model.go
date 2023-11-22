@@ -18,6 +18,7 @@ type OrderModel struct {
 	Payment_type      string     `db:"Payment_Type" form:"Payment_type" json:"Payment_type"`
 	Status            string     `db:"Status" form:"Status" json:"Status"`
 	Created_at        *time.Time `db:"Date"`
+	Product           []OrderDetailModel
 }
 
 type OrderDetailModel struct {

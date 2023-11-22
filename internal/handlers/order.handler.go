@@ -104,30 +104,30 @@ func (h *HandlerOrder) UpdateOrder(ctx *gin.Context) {
 	})
 }
 
-func (h *HandlerOrder) UpdateOrderDetail(ctx *gin.Context) {
-	var updateOrderDetail models.OrderDetailModel
-	ID, _ := strconv.Atoi(ctx.Param("order_id"))
-	if err := ctx.ShouldBind(&updateOrderDetail); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	result, err := h.RepositoryUpdateOrderDetail(ID, &updateOrderDetail)
-	if err != nil {
-		log.Fatalln(err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"message": "Product not found",
-		})
-		return
-	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Detail Order successfully updated",
-	})
-}
+// func (h *HandlerOrder) UpdateOrderDetail(ctx *gin.Context) {
+// 	var updateOrderDetail models.OrderDetailModel
+// 	ID, _ := strconv.Atoi(ctx.Param("order_product_id"))
+// 	if err := ctx.ShouldBind(&updateOrderDetail); err != nil {
+// 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+// 		return
+// 	}
+// 	err := h.RepositoryUpdateOrderDetail(ID, &updateOrderDetail)
+// 	if err != nil {
+// 		log.Fatalln(err)
+// 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		return
+// 	}
+// 	// rowsAffected, _ := result.RowsAffected()
+// 	// if rowsAffected == 0 {
+// 	// 	ctx.JSON(http.StatusNotFound, gin.H{
+// 	// 		"message": "Product not found",
+// 	// 	})
+// 	// 	return
+// 	// }
+// 	ctx.JSON(http.StatusOK, gin.H{
+// 		"message": "Detail Order successfully updated",
+// 	})
+// }
 
 func (h *HandlerOrder) DeleteOrder(ctx *gin.Context) {
 	ID, _ := strconv.Atoi(ctx.Param("order_id"))

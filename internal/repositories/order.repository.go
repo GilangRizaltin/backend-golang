@@ -89,6 +89,10 @@ func (r *OrderRepository) RepositoryGetOrderDetail(Id, page int) ([]models.Order
 	return data, nil
 }
 
+func (r *OrderRepository) RepositoryCreateTransaction(bodyOrder *models.OrderModel, bodyOrderProducts *models.OrderDetailModel) {
+
+}
+
 func (r *OrderRepository) RepositoryUpdateOrder(ID int, body *models.OrderModel) (sql.Result, error) {
 	query := `update orders
 		set status = :Status 
@@ -101,18 +105,90 @@ func (r *OrderRepository) RepositoryUpdateOrder(ID int, body *models.OrderModel)
 	return result, err
 }
 
-func (r *OrderRepository) RepositoryUpdateOrderDetail(ID int, body *models.OrderDetailModel) (sql.Result, error) {
-	query := `update orders_products
-		set quantity = :Quantity, 
-		subtotal = (select price from orders_products where id = :ID) * :Quantity
-		where id = :ID`
-	params := make(map[string]interface{})
-	params["Quantity"] = body.Quantity
-	params["ID"] = ID
-	query += ` updated_at = NOW() WHERE id = :Id`
-	result, err := r.NamedExec(query, params)
-	return result, err
-}
+// func (r *OrderRepository) RepositoryUpdateOrderDetail(ID int, body *models.OrderDetailModel) error {
+// 	tx, err := r.Beginx()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	defer func() {
+// 		if err != nil {
+// 			tx.Rollback()
+// 		}
+// 	}()
+// 	queryOrderProducts := `update orders_products
+// 		set quantity = :Quantity,
+// 		subtotal = (select price from orders_products where id = :ID) * :Quantity
+// 		where id = :ID`
+// 	params := make(map[string]interface{})
+// 	params["Quantity"] = body.Quantity
+// 	params["ID"] = ID
+// 	query += ` updated_at = NOW() WHERE id = :Id`
+// 	_, err := tx.NamedExec(queryOrderProducts, params)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	queryOrder := `update orders
+// 		set total_transaction = (select sum (subtotal) from orders_products where order_id = :ID)
+// 		where id = (select order_id from order_products where id = :ID)`
+// 	_, err := tx.NamedExec(queryOrderProducts, params)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	err = tx.Commit()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
+
+// func (r *OrderRepository) RepositoryUpdateOrderDetail(ID int, body *models.OrderDetailModel) error {
+// 	var mtx = sync.Mutex{}
+// 	tx, err := r.Beginx()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	defer func() {
+// 		if err != nil {
+// 			tx.Rollback()
+// 		}
+// 	}()
+// 	queryOrderProducts := `
+// 		UPDATE orders_products
+// 		SET
+// 			quantity = :Quantity,
+// 			subtotal = (SELECT price FROM orders_products WHERE id = :ID) * :Quantity
+// 		WHERE
+// 			id = :ID
+// 	`
+// 	params := map[string]interface{}{
+// 		"Quantity": body.Quantity,
+// 		"ID":       ID,
+// 	}
+// 	mtx.Lock()
+// 	_, err = tx.NamedExec(queryOrderProducts, params)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	mtx.Unlock()
+// 	queryOrder := `
+// 		UPDATE orders
+// 		SET
+// 			subtotal = (
+// 				SELECT SUM(subtotal) FROM orders_products WHERE order_id = (SELECT order_id FROM orders_products WHERE id = :ID)
+// 			)
+// 		WHERE
+// 			id = (SELECT order_id FROM orders_products WHERE id = :ID)
+// 	`
+// 	_, err = tx.NamedExec(queryOrder, params)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	err = tx.Commit()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
 
 func (r *OrderRepository) RepositoryDeleteProduct(ID int) (sql.Result, error) {
 	query := `

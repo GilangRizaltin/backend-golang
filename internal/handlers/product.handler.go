@@ -4,8 +4,10 @@ import (
 	"Backend_Golang/internal/models"
 	"Backend_Golang/internal/repositories"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -23,11 +25,40 @@ func (h *HandlerProduct) GetProduct(ctx *gin.Context) {
 	Maximum_Product_Price := ctx.Query("max_price")
 	Minimum_Product_Price := ctx.Query("min_price")
 	Product_Category := ctx.Query("product_category")
-	sortBy := ctx.Query("sortBy")
-	sortOrder := ctx.Query("sortOrder")
+	sortBy := ctx.Query("sort")
 	page, _ := strconv.Atoi(ctx.Query("page"))
 	if page == 0 {
 		page = 1
+	}
+	if Maximum_Product_Price != "" || Minimum_Product_Price != "" {
+		if Maximum_Product_Price != "" {
+			_, errMax := strconv.Atoi(Maximum_Product_Price)
+			if errMax != nil {
+				ctx.JSON(http.StatusBadRequest, gin.H{
+					"message": "Please input right number",
+				})
+				return
+			}
+		}
+		if Minimum_Product_Price != "" {
+			_, errMin := strconv.Atoi(Minimum_Product_Price)
+			if errMin != nil {
+				ctx.JSON(http.StatusBadRequest, gin.H{
+					"message": "Please input right number",
+				})
+				return
+			}
+		}
+		if Maximum_Product_Price != "" && Minimum_Product_Price != "" {
+			priceMax, _ := strconv.Atoi(Maximum_Product_Price)
+			priceMin, _ := strconv.Atoi(Minimum_Product_Price)
+			if priceMax < priceMin {
+				ctx.JSON(http.StatusBadRequest, gin.H{
+					"message": "Maximum price must be greater than Minimum price",
+				})
+				return
+			}
+		}
 	}
 	conditions := []string{
 		Product_Name,
@@ -35,11 +66,17 @@ func (h *HandlerProduct) GetProduct(ctx *gin.Context) {
 		Minimum_Product_Price,
 		Product_Category,
 		sortBy,
-		sortOrder,
 	}
 	result, err := h.RepositoryGet(conditions, page)
 	data, _ := h.RepositoryCountProduct(conditions)
+	//error handling
 	if err != nil {
+		if strings.Contains(err.Error(), "trailing junk after numeric literal") {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"message": "Please input right number",
+			})
+			return
+		}
 		log.Print(err)
 		ctx.JSON(http.StatusInternalServerError, err)
 		return
@@ -50,25 +87,25 @@ func (h *HandlerProduct) GetProduct(ctx *gin.Context) {
 		})
 		return
 	}
-	// url := ctx.Request.URL.RawQuery
-	// lastPage := math.Round(float64(data[0]) / 6)
-	// next := page + 1
-	// prev := page - 1
-	// nextPage := "localhost:6121/product?" + url
-	// prevPage := "localhost:6121/product" + url
-	// if page == int(lastPage) {
-	// 	nextPage = "null"
-	// }
-	// if page == 1 {
-	// 	prevPage = "null"
-	// }
+	url := ctx.Request.URL.RawQuery
+	lastPage := math.Round(float64(data[0]) / 6)
+	linkPage := "localhost:6121/product?" + url
+	nextPage := linkPage[:len(linkPage)-1] + strconv.Itoa(page+1)
+	prevPage := linkPage[:len(linkPage)-1] + strconv.Itoa(page-1)
+	if page == int(lastPage) {
+		nextPage = "null"
+	}
+	if page == 1 {
+		prevPage = "null"
+	}
 	ctx.JSON(http.StatusOK, gin.H{
 		"message":    "Get all products success",
 		"data":       result,
 		"page":       page,
 		"total_data": data[0],
-		// "url":        url,
-		// "Laspage":    nextPage,
+		"nextPage":   nextPage,
+		"prevPage":   prevPage,
+		"lastPage":   lastPage,
 	})
 }
 

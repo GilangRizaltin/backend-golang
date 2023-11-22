@@ -44,16 +44,32 @@ func (r *ProductRepository) RepositoryGet(conditions []string, page int) ([]mode
 		conditional = append(conditional, "p.price_default > "+conditions[2])
 	}
 	if conditions[3] != "" {
-		conditional = append(conditional, "p.category = "+conditions[3])
+		conditional = append(conditional, "p.category = (SELECT id FROM categories c WHERE c.category_name = '"+conditions[3]+"')")
 	}
 	if len(conditional) > 0 {
 		query += " WHERE " + strings.Join(conditional, " AND ")
 	}
-	if conditions[4] != "" && conditions[5] != "" {
-		query += " ORDER BY " + conditions[4] + " " + conditions[5]
+	if conditions[4] != "" {
+		query += " ORDER BY "
+		if conditions[4] != "Cheapest" {
+			query += " p.price_default asc"
+		}
+		if conditions[4] != "Most Expensive" {
+			query += " p.price_default desc"
+		}
+		if conditions[4] != "New Product" {
+			query += " p.created_at desc"
+		}
+		if conditions[4] != "Oldest" {
+			query += " p.created_at asc"
+		}
+		if conditions[4] != "" {
+			query += " p.id asc"
+		}
 	}
 	query += " LIMIT 6 OFFSET " + strconv.Itoa((page-1)*3)
 	err := r.Select(&data, query)
+	fmt.Println(query)
 	if err != nil {
 		return nil, err
 	}
