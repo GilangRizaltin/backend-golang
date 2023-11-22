@@ -13,6 +13,7 @@ func RouterProduct(g *gin.Engine, db *sqlx.DB) {
 	repository := repositories.InitializeRepository(db)
 	handler := handlers.InitializeHandler(repository)
 	route.GET("", handler.GetProduct)
+	route.GET("/:id", handler.GetProductDetail)
 	route.POST("", handler.CreateProduct)
 	route.PATCH("/:id", handler.UpdateProduct)
 	route.DELETE("/:id", handler.DeleteProduct)

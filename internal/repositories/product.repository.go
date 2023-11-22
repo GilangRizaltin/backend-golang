@@ -43,27 +43,30 @@ func (r *ProductRepository) RepositoryGet(conditions []string, page int) ([]mode
 	if conditions[2] != "" {
 		conditional = append(conditional, "p.price_default > "+conditions[2])
 	}
+	// if conditions[3] != "" {
+	// 	conditional = append(conditional, "p.category = (SELECT id FROM categories c WHERE c.category_name = 'Coffee')")
+	// }
 	if conditions[3] != "" {
-		conditional = append(conditional, "p.category = (SELECT id FROM categories c WHERE c.category_name = '"+conditions[3]+"')")
+		conditional = append(conditional, "c.category_name = 'Coffee'")
 	}
 	if len(conditional) > 0 {
 		query += " WHERE " + strings.Join(conditional, " AND ")
 	}
 	if conditions[4] != "" {
 		query += " ORDER BY "
-		if conditions[4] != "Cheapest" {
+		if conditions[4] == "Cheapest" {
 			query += " p.price_default asc"
 		}
-		if conditions[4] != "Most Expensive" {
+		if conditions[4] == "Most Expensive" {
 			query += " p.price_default desc"
 		}
-		if conditions[4] != "New Product" {
+		if conditions[4] == "New Product" {
 			query += " p.created_at desc"
 		}
-		if conditions[4] != "Oldest" {
+		if conditions[4] == "Oldest" {
 			query += " p.created_at asc"
 		}
-		if conditions[4] != "" {
+		if conditions[4] == "" {
 			query += " p.id asc"
 		}
 	}
@@ -76,10 +79,30 @@ func (r *ProductRepository) RepositoryGet(conditions []string, page int) ([]mode
 	return data, nil
 }
 
+func (r *ProductRepository) RepositoryGetDetail(ID int) ([]models.ProductModel, error) {
+	data := []models.ProductModel{}
+	query := `SELECT
+		p.id as "No",
+		p.product_name as "Product",
+		c.category_name as "Categories",
+		p.description as "Description",
+		p.price_default as "Price"
+	FROM
+		products p
+	JOIN
+		categories c ON p.category = c.id
+	WHERE p.id = $1`
+	err := r.Select(&data, query, ID)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
 func (r *ProductRepository) RepositoryCreateProduct(body *models.ProductModel) error {
 	query := `
 		INSERT INTO products (product_name, category, description, price_default)
-        VALUES (:Product, (SELECT id FROM categories WHERE category_name = :Category), :Description, :Price);
+        VALUES (:Product, (SELECT id FROM categories WHERE category_name = :Categories), :Description, :Price);
     `
 	_, err := r.NamedExec(query, body)
 	return err
@@ -107,7 +130,7 @@ func (r *ProductRepository) RepositoryUpdateProduct(productID int, body *models.
 		query += conditional[0] + ", "
 	}
 	if len(conditional) > 1 {
-		query += strings.Join(conditional, ", ")
+		query += strings.Join(conditional, ", ") + ", "
 	}
 	params["Id"] = productID
 	query += ` update_at = NOW() WHERE id = :Id`

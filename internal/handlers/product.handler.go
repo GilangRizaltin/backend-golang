@@ -88,7 +88,7 @@ func (h *HandlerProduct) GetProduct(ctx *gin.Context) {
 		return
 	}
 	url := ctx.Request.URL.RawQuery
-	lastPage := math.Round(float64(data[0]) / 6)
+	lastPage := int(math.Ceil(float64(data[0]) / 6))
 	linkPage := "localhost:6121/product?" + url
 	nextPage := linkPage[:len(linkPage)-1] + strconv.Itoa(page+1)
 	prevPage := linkPage[:len(linkPage)-1] + strconv.Itoa(page-1)
@@ -109,10 +109,34 @@ func (h *HandlerProduct) GetProduct(ctx *gin.Context) {
 	})
 }
 
+func (h *HandlerProduct) GetProductDetail(ctx *gin.Context) {
+	ID, _ := strconv.Atoi(ctx.Param("id"))
+	result, err := h.RepositoryGetDetail(ID)
+	if len(result) == 0 {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"message": "Data not found",
+		})
+		return
+	}
+	if err != nil {
+		log.Print(err)
+		ctx.JSON(http.StatusInternalServerError, err)
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Get product success",
+		"Product": result})
+}
+
 func (h *HandlerProduct) CreateProduct(ctx *gin.Context) {
 	var newProduct models.ProductModel
-	if err := ctx.BindJSON(&newProduct); err != nil { //shouldBind datanya ga masuk
+	if err := ctx.ShouldBind(&newProduct); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if newProduct.Category == "" || newProduct.Product_name == "" || newProduct.Description == "" || newProduct.Price_default == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "Please fullfill all data"})
 		return
 	}
 	if err := h.RepositoryCreateProduct(&newProduct); err != nil {
@@ -126,9 +150,8 @@ func (h *HandlerProduct) CreateProduct(ctx *gin.Context) {
 
 func (h *HandlerProduct) UpdateProduct(ctx *gin.Context) {
 	var updateProduct models.ProductModel
-	// ID := ctx.Param("id")
 	ID, _ := strconv.Atoi(ctx.Param("id"))
-	if err := ctx.BindJSON(&updateProduct); err != nil {
+	if err := ctx.ShouldBind(&updateProduct); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
