@@ -134,13 +134,32 @@ func (h *HandlerUser) AddUser(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	err := h.RepositoryRegisterUser(&newUser)
+	err := h.RepositoryAddUser(&newUser)
 	if err != nil {
+		if strings.Contains(err.Error(), "users_email_key") {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"message": "Email already used",
+			})
+			return
+		}
+		if strings.Contains(err.Error(), "users_phone_key") {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"message": "Phone number already used",
+			})
+			return
+		}
+		if strings.Contains(err.Error(), "users_user_name_key") {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"message": "Username already used",
+			})
+			return
+		}
+		log.Fatalln(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	ctx.JSON(http.StatusCreated, gin.H{
-		"message":      "Product created successfully",
+		"message":      "User created successfully",
 		"Product_Name": newUser.User_name})
 }
 

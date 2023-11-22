@@ -14,7 +14,7 @@ func RouterUser(g *gin.Engine, db *sqlx.DB) {
 	handler := handlers.InitializeUserHandler(repository)
 	route.GET("", handler.GetUser)
 	route.GET("/:id", handler.GetUserProfile)
-	route.POST("", handler.RegisterUser)
+	route.POST("", handler.AddUser)
 	route.POST("/register", handler.RegisterUser)
 	route.PATCH("/:id", handler.EditUserProfile)
 	route.DELETE("/:id", handler.DeleteUser)
