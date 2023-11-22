@@ -89,22 +89,7 @@ func (h *HandlerProduct) GetProduct(ctx *gin.Context) {
 	}
 	url := ctx.Request.URL.RawQuery
 	pages := ctx.Query("page")
-	var nextPage string
-	var prevPage string
-	lastPage := int(math.Ceil(float64(data[0]) / 6))
-	linkPage := "localhost:6121/product?" + url
-	nextPage = linkPage[:len(linkPage)-1] + strconv.Itoa(page+1)
-	prevPage = linkPage[:len(linkPage)-1] + strconv.Itoa(page-1)
-	if pages == "" {
-		nextPage = linkPage + "&page=" + strconv.Itoa(page+1)
-		prevPage = linkPage + "&page=" + strconv.Itoa(page-1)
-	}
-	if page == int(lastPage) {
-		nextPage = "null"
-	}
-	if page == 1 {
-		prevPage = "null"
-	}
+	nextPage, prevPage, lastPage := pagination(url, pages, data[0], page)
 	ctx.JSON(http.StatusOK, gin.H{
 		"message":    "Get all products success",
 		"data":       result,
@@ -195,4 +180,24 @@ func (h *HandlerProduct) DeleteProduct(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{
 		"message": "Product successfully deleted",
 	})
+}
+
+func pagination(url, pages string, totalData, page int) (string, string, int) {
+	var nextPage string
+	var prevPage string
+	lastPage := int(math.Ceil(float64(totalData) / 6))
+	linkPage := "localhost:6121/product?" + url
+	nextPage = linkPage[:len(linkPage)-1] + strconv.Itoa(page+1)
+	prevPage = linkPage[:len(linkPage)-1] + strconv.Itoa(page-1)
+	if pages == "" {
+		nextPage = linkPage + "&page=" + strconv.Itoa(page+1)
+		prevPage = linkPage + "&page=" + strconv.Itoa(page-1)
+	}
+	if page == int(lastPage) {
+		nextPage = "null"
+	}
+	if page == 1 {
+		prevPage = "null"
+	}
+	return nextPage, prevPage, lastPage
 }
