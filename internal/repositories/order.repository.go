@@ -39,7 +39,7 @@ func (r *OrderRepository) RepositoryGetOrder(filter []string, page int) ([]model
     join payment_type py on o.payment_type = py.id
 	`
 	if filter[0] != "" {
-		query += ` where o.status = ` + filter[0]
+		query += ` where o.status = '` + filter[0] + `'`
 	}
 	if filter[1] != "" {
 		query += ` order by o.created_at`
@@ -51,6 +51,7 @@ func (r *OrderRepository) RepositoryGetOrder(filter []string, page int) ([]model
 		}
 	}
 	query += " LIMIT 6 OFFSET " + strconv.Itoa((page-1)*3)
+	// fmt.Println(query)
 	err := r.Select(&data, query)
 	if err != nil {
 		return nil, err
@@ -79,7 +80,8 @@ func (r *OrderRepository) RepositoryGetOrderDetail(Id, page int) ([]models.Order
     join
     sizes s ON op.size_id = s.id
     where
-    o.id = ` + ID
+    op.id = ` + ID
+	// fmt.Println(query)
 	err := r.Select(&data, query)
 	if err != nil {
 		return nil, err

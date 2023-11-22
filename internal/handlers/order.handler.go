@@ -50,7 +50,7 @@ func (h *HandlerOrder) GetOrder(ctx *gin.Context) {
 }
 
 func (h *HandlerOrder) GetOrderOnDetail(ctx *gin.Context) {
-	ID, _ := strconv.Atoi(ctx.Param("id"))
+	ID, _ := strconv.Atoi(ctx.Param("order_id"))
 	page, _ := strconv.Atoi(ctx.Query("page"))
 	if page == 0 {
 		page = 1
@@ -81,7 +81,7 @@ func (h *HandlerOrder) CreateOrder(ctx *gin.Context) {
 
 func (h *HandlerOrder) UpdateOrder(ctx *gin.Context) {
 	var updateOrder models.OrderModel
-	ID, _ := strconv.Atoi(ctx.Param("id"))
+	ID, _ := strconv.Atoi(ctx.Query("id"))
 	if err := ctx.ShouldBind(&updateOrder); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -106,7 +106,7 @@ func (h *HandlerOrder) UpdateOrder(ctx *gin.Context) {
 
 func (h *HandlerOrder) UpdateOrderDetail(ctx *gin.Context) {
 	var updateOrderDetail models.OrderDetailModel
-	ID, _ := strconv.Atoi(ctx.Param("id"))
+	ID, _ := strconv.Atoi(ctx.Param("order_id"))
 	if err := ctx.ShouldBind(&updateOrderDetail); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -130,7 +130,7 @@ func (h *HandlerOrder) UpdateOrderDetail(ctx *gin.Context) {
 }
 
 func (h *HandlerOrder) DeleteOrder(ctx *gin.Context) {
-	ID, _ := strconv.Atoi(ctx.Param("id"))
+	ID, _ := strconv.Atoi(ctx.Param("order_id"))
 	result, err := h.RepositoryDeleteProduct(ID)
 	if err != nil {
 		log.Print(err)

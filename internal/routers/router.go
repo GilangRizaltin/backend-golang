@@ -17,5 +17,6 @@ func New(db *sqlx.DB) *gin.Engine {
 	RouterProduct(router, db)
 	RouterPromo(router, db)
 	RouterUser(router, db)
+	RouterOrder(router, db)
 	return router
 }

@@ -1,22 +1,23 @@
 package models
 
-import "time"
+import (
+	"time"
+)
 
 type OrderModel struct {
 	Id                int        `db:"No"`
 	User              string     `db:"User" form:"User" json:"User"`
-	Subtotal          int        `db:"Subtotal" form:"Subtotal" json:"Subtotal"`
-	Promo             string     `db:"Promo" form:"Promo" json:"Promo"`
-	Percent_discount  float64    `db:"Percent_discount" form:"Percent_discount" json:"Percent_discount"`
-	Flat_discount     int        `db:"Flat_discount" form:"Flat_discount" json:"Flat_discount"`
-	Serve             string     `db:"Serve" form:"Serve" json:"Serve"`
-	Fee               int        `db:"Fee" form:"Fee" json:"Fee"`
+	Subtotal          *int       `db:"Subtotal" form:"Subtotal" json:"Subtotal"`
+	Promo             string     `db:"Promo_Code" form:"Promo" json:"Promo"`
+	Percent_discount  float64    `db:"Discount_Percentage" form:"Percent_discount" json:"Percent_discount"`
+	Flat_discount     int        `db:"Discount_Flat" form:"Flat_discount" json:"Flat_discount"`
+	Serve             string     `db:"Serving_Type" form:"Serve" json:"Serve"`
+	Fee               int        `db:"Serving_Fee" form:"Fee" json:"Fee"`
 	Tax               float64    `db:"Tax" form:"Tax" json:"Tax"`
-	Total_transaction int        `db:"Total_transaction" form:"Total_transaction" json:"Total_transaction"`
-	Payment_type      string     `db:"Payment_type" form:"Payment_type" json:"Payment_type"`
+	Total_transaction *int       `db:"Total_Transactions" form:"Total_transaction" json:"Total_transaction"`
+	Payment_type      string     `db:"Payment_Type" form:"Payment_type" json:"Payment_type"`
 	Status            string     `db:"Status" form:"Status" json:"Status"`
-	Created_at        *time.Time `db:"Created_at"`
-	// Product           []OrderDetailModel
+	Created_at        *time.Time `db:"Date"`
 }
 
 type OrderDetailModel struct {
@@ -28,7 +29,3 @@ type OrderDetailModel struct {
 	Quantity     int    `db:"Quantity" form:"Quantity" json:"Quantity"`
 	// Subtotal_product int    `db:"Subtotal_product" form:"Subtotal_product" json:"Subtotal_product"`
 }
-
-// func (m *OrderProduct) SetProduct() {
-
-// }
