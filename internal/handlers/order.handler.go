@@ -30,6 +30,7 @@ func (h *HandlerOrder) GetOrder(ctx *gin.Context) {
 		Sort,
 	}
 	result, err := h.RepositoryGetOrder(filter, page)
+	data, _ := h.RepositoryCountOrder(filter)
 	if err != nil {
 		log.Print(err)
 		ctx.JSON(http.StatusInternalServerError, err)
@@ -38,14 +39,20 @@ func (h *HandlerOrder) GetOrder(ctx *gin.Context) {
 	if len(result) == 0 {
 		ctx.JSON(http.StatusNotFound, gin.H{
 			"message": "Data Not Found",
-			"result":  result,
 		})
 		return
 	}
+	url := ctx.Request.URL.RawQuery
+	pages := ctx.Query("page")
+	nextPage, prevPage, lastPage := pagination(url, pages, "order?", data[0], page)
 	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Get all promo success",
-		"data":    result,
-		"page":    page,
+		"message":    "Get all order success",
+		"data":       result,
+		"page":       page,
+		"total_data": data[0],
+		"nextPage":   nextPage,
+		"prevPage":   prevPage,
+		"lastPage":   lastPage,
 	})
 }
 
@@ -76,12 +83,29 @@ func (h *HandlerOrder) GetOrderOnDetail(ctx *gin.Context) {
 }
 
 func (h *HandlerOrder) CreateOrder(ctx *gin.Context) {
-
+	var newOrder models.OrderModel
+	var newOrderDetail models.OrderDetailModel
+	if err := ctx.ShouldBindJSON(&newOrder); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := ctx.ShouldBindJSON(&newOrderDetail); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	err := h.RepositoryCreateTransaction(&newOrder, &newOrderDetail)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusCreated, gin.H{
+		"message": "Order transaction created successfully",
+	})
 }
 
 func (h *HandlerOrder) UpdateOrder(ctx *gin.Context) {
 	var updateOrder models.OrderModel
-	ID, _ := strconv.Atoi(ctx.Query("id"))
+	ID, _ := strconv.Atoi(ctx.Param("id"))
 	if err := ctx.ShouldBind(&updateOrder); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -95,12 +119,12 @@ func (h *HandlerOrder) UpdateOrder(ctx *gin.Context) {
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
 		ctx.JSON(http.StatusNotFound, gin.H{
-			"message": "Product not found",
+			"message": "Order not found",
 		})
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Order successfully updated",
+		"message": "Order status successfully updated",
 	})
 }
 
@@ -145,11 +169,11 @@ func (h *HandlerOrder) DeleteOrder(ctx *gin.Context) {
 	}
 	if rowsAffected == 0 {
 		ctx.JSON(http.StatusNotFound, gin.H{
-			"message": "Product not found",
+			"message": "Order not found",
 		})
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Product successfully deleted",
+		"message": "Order successfully deleted",
 	})
 }

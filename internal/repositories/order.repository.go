@@ -3,6 +3,8 @@ package repositories
 import (
 	"Backend_Golang/internal/models"
 	"database/sql"
+	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/jmoiron/sqlx"
@@ -63,7 +65,8 @@ func (r *OrderRepository) RepositoryGetOrderDetail(Id, page int) ([]models.Order
 	data := []models.OrderDetailModel{}
 	ID := strconv.Itoa(Id)
 	query := `select
-    op.id as "No Order",
+    o.id as "No Order",
+	op.id as "Order_products",
     p.product_name as "Product_name",
     op.hot_or_not as "Hot_or_not",
     s.size_name as "Size",
@@ -80,7 +83,7 @@ func (r *OrderRepository) RepositoryGetOrderDetail(Id, page int) ([]models.Order
     join
     sizes s ON op.size_id = s.id
     where
-    op.id = ` + ID
+    op.order_id = ` + ID
 	// fmt.Println(query)
 	err := r.Select(&data, query)
 	if err != nil {
@@ -89,18 +92,75 @@ func (r *OrderRepository) RepositoryGetOrderDetail(Id, page int) ([]models.Order
 	return data, nil
 }
 
-func (r *OrderRepository) RepositoryCreateTransaction(bodyOrder *models.OrderModel, bodyOrderProducts *models.OrderDetailModel) {
-
+func (r *OrderRepository) RepositoryCreateTransaction(bodyOrder *models.OrderModel, bodyOrderProducts *models.OrderDetailModel) error {
+	tx, err := r.Beginx()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+	queryOrder := `INSERT INTO orders(user_id, subtotal, promo_id, percent_discount, flat_discount, serve_id, fee, tax, total_transactions, payment_type, status)
+	VALUES (
+		(SELECT id FROM users WHERE user_name = :User), :Subtotal, 
+		(SELECT id FROM promos WHERE promo_code = :Promo), 
+		(SELECT percent_amount FROM promos WHERE promo_code = :Promo),
+		(SELECT flat_amount FROM promos WHERE promo_code = :Promo),
+		(SELECT id FROM serve WHERE serve_type = :Serve),
+		(SELECT fee FROM serve WHERE serve_type = :Serve),
+		0.1,
+		:Total_transaction,
+		(SELECT id FROM payment WHERE payment_name = :Payment_type),
+		'On progress'
+	) returning id`
+	err = tx.Get(&bodyOrder.Id, queryOrder, bodyOrder)
+	if err != nil {
+		return err
+	}
+	queryOrderProduct := `INSERT INTO orders_products (order_id, product_id,hot_or_not, size_id, price, quantity, subtotal)
+	VALUES (
+		$1,
+		(SELECT id FROM products WHERE product_name = :Product_name),
+		:Hot_or_not,
+		(SELECT id FROM sizes WHERE size_name = :Size),
+		(
+			(SELECT price_default FROM products WHERE product_name = :Product_name) + 
+			(SELECT additional_fee FROM sizes WHERE size_name = :Size)
+		),
+		$3,
+		(
+			(
+				(SELECT price_default FROM products WHERE product_name = :Product_name) + 
+				(SELECT additional_fee FROM sizes WHERE size_name = :Size)
+			) * $3
+		)
+	)`
+	_, err = tx.Exec(queryOrderProduct,
+		bodyOrder.Id,
+		bodyOrderProducts.Product_name,
+		bodyOrderProducts.Hot_or_not,
+		bodyOrderProducts.Size,
+		bodyOrderProducts.Quantity)
+	if err != nil {
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *OrderRepository) RepositoryUpdateOrder(ID int, body *models.OrderModel) (sql.Result, error) {
 	query := `update orders
-		set status = :Status 
-		where id = :ID`
+		set status = :Status`
 	params := make(map[string]interface{})
 	params["Status"] = body.Status
-	params["ID"] = ID
-	query += ` update_at = NOW() WHERE id = :Id`
+	params["Id"] = ID
+	query += `, updated_at = NOW() WHERE id = :Id`
+	fmt.Println(query)
 	result, err := r.NamedExec(query, params)
 	return result, err
 }
@@ -199,4 +259,22 @@ func (r *OrderRepository) RepositoryDeleteProduct(ID int) (sql.Result, error) {
     `
 	result, err := r.Exec(query, ID)
 	return result, err
+}
+
+func (r *OrderRepository) RepositoryCountOrder(filter []string) ([]int, error) {
+	var total_data = []int{}
+	query := `
+		SELECT
+			COUNT(*) AS "Total_order"
+		FROM
+			orders o `
+	if filter[0] != "" {
+		query += ` where o.status = '` + filter[0] + `'`
+	}
+	err := r.Select(&total_data, query)
+	if err != nil {
+		log.Fatalln(err)
+		return nil, err
+	}
+	return total_data, nil
 }

@@ -18,15 +18,16 @@ type OrderModel struct {
 	Payment_type      string     `db:"Payment_Type" form:"Payment_type" json:"Payment_type"`
 	Status            string     `db:"Status" form:"Status" json:"Status"`
 	Created_at        *time.Time `db:"Date"`
-	Product           []OrderDetailModel
+	// Product           []OrderDetailModel
 }
 
 type OrderDetailModel struct {
-	Order_id     int    `db:"No Order"`
-	Product_name string `db:"Product_name" form:"Product_name" json:"Product_name"`
-	Size         string `db:"Size" form:"Size" json:"Size"`
-	Hot_or_not   bool   `db:"Hot_or_not" form:"Hot_or_not" json:"Hot_or_not"`
-	Price        int    `db:"Price" form:"Price" json:"Price"`
-	Quantity     int    `db:"Quantity" form:"Quantity" json:"Quantity"`
+	Order_id         int    `db:"No Order"`
+	Order_product_id int    `db:"Order_products"`
+	Product_name     string `db:"Product_name" form:"Product_name" json:"Product_name"`
+	Size             string `db:"Size" form:"Size" json:"Size"`
+	Hot_or_not       bool   `db:"Hot_or_not" form:"Hot_or_not" json:"Hot_or_not"`
+	Price            int    `db:"Price" form:"Price" json:"Price"`
+	Quantity         int    `db:"Quantity" form:"Quantity" json:"Quantity"`
 	// Subtotal_product int    `db:"Subtotal_product" form:"Subtotal_product" json:"Subtotal_product"`
 }
