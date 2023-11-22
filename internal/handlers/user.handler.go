@@ -41,6 +41,35 @@ func (h *HandlerUser) GetUser(ctx *gin.Context) {
 		SortOrder,
 	}
 	result, err := h.RepositoryGetUser(filter, page)
+	data, _ := h.RepositoryCountUser(filter)
+	if err != nil {
+		log.Print(err)
+		ctx.JSON(http.StatusInternalServerError, err)
+		return
+	}
+	if len(result) == 0 {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"message": "Data Not Found",
+		})
+		return
+	}
+	url := ctx.Request.URL.RawQuery
+	pages := ctx.Query("page")
+	nextPage, prevPage, lastPage := pagination(url, pages, "user?", data[0], page)
+	ctx.JSON(http.StatusOK, gin.H{
+		"message":    "Get all users success",
+		"data":       result,
+		"page":       page,
+		"total_data": data[0],
+		"nextPage":   nextPage,
+		"prevPage":   prevPage,
+		"lastPage":   lastPage,
+	})
+}
+
+func (h *HandlerUser) GetUserProfile(ctx *gin.Context) {
+	ID := ctx.Param("id")
+	result, err := h.RepositoryGetUserProfile(ID)
 	if err != nil {
 		log.Print(err)
 		ctx.JSON(http.StatusInternalServerError, err)
@@ -53,21 +82,14 @@ func (h *HandlerUser) GetUser(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Get all products success",
+		"message": "Get user success",
 		"data":    result,
-		"page":    page,
-		// "total_data": data[0],
-		// "url":        url,
-		// "Laspage":    nextPage,
 	})
 }
 
-// func (h *HandlerUser) GetUserProfile(ctx *gin.Context) {
-// }
-
 func (h *HandlerUser) RegisterUser(ctx *gin.Context) {
 	var newUser models.UserModel
-	if err := ctx.ShouldBind(&newUser); err != nil { //shouldBind datanya ga masuk
+	if err := ctx.ShouldBind(&newUser); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -85,18 +107,30 @@ func (h *HandlerUser) RegisterUser(ctx *gin.Context) {
 			})
 			return
 		}
+		// if strings.Contains(err.Error(), "users_phone_key") {
+		// 	ctx.JSON(http.StatusBadRequest, gin.H{
+		// 		"message": "Phone number already used",
+		// 	})
+		// 	return
+		// }
+		// if strings.Contains(err.Error(), "users_user_name_key") {
+		// 	ctx.JSON(http.StatusBadRequest, gin.H{
+		// 		"message": "Username already used",
+		// 	})
+		// 	return
+		// }
 		log.Fatalln(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	ctx.JSON(http.StatusCreated, gin.H{
-		"message":      "Product created successfully",
-		"Product_Name": newUser.User_name})
+		"message": "User created successfully",
+		"User":    newUser.Full_name})
 }
 
 func (h *HandlerUser) AddUser(ctx *gin.Context) {
 	var newUser models.UserModel
-	if err := ctx.BindJSON(&newUser); err != nil { //shouldBind datanya ga masuk
+	if err := ctx.ShouldBind(&newUser); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -113,18 +147,25 @@ func (h *HandlerUser) AddUser(ctx *gin.Context) {
 func (h *HandlerUser) EditUserProfile(ctx *gin.Context) {
 	var updateUser models.UserModel
 	ID, _ := strconv.Atoi(ctx.Param("id"))
-	if err := ctx.BindJSON(&updateUser); err != nil {
+	if err := ctx.ShouldBind(&updateUser); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	err := h.RepositoryUpdateUser(ID, &updateUser)
+	result, err := h.RepositoryUpdateUser(ID, &updateUser)
+	rowsAffected, _ := result.RowsAffected()
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	if rowsAffected == 0 {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"message": "Users not found",
+		})
+		return
+	}
 	ctx.JSON(http.StatusCreated, gin.H{
-		"message": "Product successfully updated",
+		"message": "Users successfully updated",
 	})
 }
 

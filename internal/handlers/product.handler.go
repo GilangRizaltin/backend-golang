@@ -89,7 +89,7 @@ func (h *HandlerProduct) GetProduct(ctx *gin.Context) {
 	}
 	url := ctx.Request.URL.RawQuery
 	pages := ctx.Query("page")
-	nextPage, prevPage, lastPage := pagination(url, pages, data[0], page)
+	nextPage, prevPage, lastPage := pagination(url, pages, "product?", data[0], page)
 	ctx.JSON(http.StatusOK, gin.H{
 		"message":    "Get all products success",
 		"data":       result,
@@ -182,11 +182,11 @@ func (h *HandlerProduct) DeleteProduct(ctx *gin.Context) {
 	})
 }
 
-func pagination(url, pages string, totalData, page int) (string, string, int) {
+func pagination(url, pages, endpoint string, totalData, page int) (string, string, int) {
 	var nextPage string
 	var prevPage string
 	lastPage := int(math.Ceil(float64(totalData) / 6))
-	linkPage := "localhost:6121/product?" + url
+	linkPage := "localhost:6121/" + endpoint + url
 	nextPage = linkPage[:len(linkPage)-1] + strconv.Itoa(page+1)
 	prevPage = linkPage[:len(linkPage)-1] + strconv.Itoa(page-1)
 	if pages == "" {

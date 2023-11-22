@@ -62,6 +62,27 @@ func (r *UserRepository) RepositoryGetUser(conditions []string, page int) ([]mod
 	return data, nil
 }
 
+func (r *UserRepository) RepositoryGetUserProfile(ID string) ([]models.UserModel, error) {
+	data := []models.UserModel{}
+	query := `
+	select u.id as "No",
+	u.user_photo_profile as "Photo_profile",
+	u.user_name as "User_name",
+	u.full_name as "Full_name",
+	u.phone as "Phone",
+	u.address as "Address",
+	u.email as "Email",
+	u.user_type as "User_type",
+	u.otp as "Otp"
+	from users u
+	where u.id = $1`
+	err := r.Select(&data, query, ID)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
 func (r *UserRepository) RepositoryRegisterUser(body *models.UserModel) error {
 	query := `
 	insert into users(full_name, email, user_type, password_user) VALUES (:Full_name, :Email, 'Normal User', :Password) returning id, full_name
@@ -78,7 +99,7 @@ func (r *UserRepository) RepositoryAddUser(body *models.UserModel) error {
 	return err
 }
 
-func (r *UserRepository) RepositoryUpdateUser(productID int, body *models.UserModel) error {
+func (r *UserRepository) RepositoryUpdateUser(productID int, body *models.UserModel) (sql.Result, error) {
 	var conditional []string
 	query := `
         UPDATE users
@@ -116,8 +137,8 @@ func (r *UserRepository) RepositoryUpdateUser(productID int, body *models.UserMo
 	}
 	params["Id"] = productID
 	query += ` update_at = NOW() WHERE id = :Id`
-	_, err := r.NamedExec(query, params)
-	return err
+	result, err := r.NamedExec(query, params)
+	return result, err
 }
 
 func (r *UserRepository) RepositoryDeleteUser(userID int) (sql.Result, error) {
@@ -140,16 +161,19 @@ func (r *UserRepository) RepositoryCountUser(conditions []string) ([]int, error)
 			users u `
 	var conditional []string
 	if conditions[0] != "" {
-		conditional = append(conditional, "u.user_name ilike '%"+conditions[0]+"%'")
+		conditional = append(conditional, "u.id = "+conditions[0]+"")
 	}
 	if conditions[1] != "" {
-		conditional = append(conditional, "u.full_name ilike '%"+conditions[1]+"%'")
+		conditional = append(conditional, "u.user_name ilike '%"+conditions[1]+"%'")
 	}
 	if conditions[2] != "" {
-		conditional = append(conditional, "u.email ilike '%"+conditions[2]+"%'")
+		conditional = append(conditional, "u.full_name ilike '%"+conditions[2]+"%'")
 	}
 	if conditions[3] != "" {
-		conditional = append(conditional, "u.phone ilike '%"+conditions[3]+"%'")
+		conditional = append(conditional, "u.email ilike '%"+conditions[3]+"%'")
+	}
+	if conditions[4] != "" {
+		conditional = append(conditional, "u.phone ilike '%"+conditions[4]+"%'")
 	}
 	if len(conditional) > 0 {
 		query += " WHERE " + strings.Join(conditional, " AND ")

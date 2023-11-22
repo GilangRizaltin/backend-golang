@@ -10,7 +10,7 @@ type UserModel struct {
 	Email         string      `db:"Email" form:"Email" json:"Email"`
 	Password      string      `db:"Password" form:"Password" json:"Password"`
 	User_type     string      `db:"User_type" form:"User_type" json:"User_type"`
-	Otp           int         `db:"Otp" form:"Otp" json:"Otp"`
+	Otp           *int        `db:"Otp" form:"Otp" json:"Otp"`
 	// Created_at    *time.Time  `db:"created_at"`
 	// Updated_at    *time.Time  `db:"updated_at"`
 }

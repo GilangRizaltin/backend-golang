@@ -13,6 +13,7 @@ func RouterUser(g *gin.Engine, db *sqlx.DB) {
 	repository := repositories.InitializeUserRepository(db)
 	handler := handlers.InitializeUserHandler(repository)
 	route.GET("", handler.GetUser)
+	route.GET("/:id", handler.GetUserProfile)
 	route.POST("", handler.RegisterUser)
 	route.POST("/register", handler.RegisterUser)
 	route.PATCH("/:id", handler.EditUserProfile)
