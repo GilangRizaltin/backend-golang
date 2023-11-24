@@ -1,7 +1,7 @@
 package models
 
 type UserModel struct {
-	Id            string      `db:"No"`
+	Id            int         `db:"No"`
 	Photo_profile interface{} `db:"Photo_profile" form:"Photo_profile" json:"Photo_profile"`
 	User_name     *string     `db:"User_name" form:"User_name" json:"User_name"`
 	Full_name     *string     `db:"Full_name" form:"Full_name" json:"Full_name"`

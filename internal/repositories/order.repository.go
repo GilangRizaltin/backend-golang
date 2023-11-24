@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -24,14 +25,14 @@ func (r *OrderRepository) RepositoryGetOrder(filter []string, page int) ([]model
 	select o.id as "No",
     u.full_name  as "User",
     o.subtotal as "Subtotal",
-    p.promo_code as "Promo_Code",
+    p.promo_code as "Promo",
     o.percent_discount as "Discount_Percentage",
     o.flat_discount as "Discount_Flat",
-    s.serve_type as "Serving_Type",
+    s.serve_type as "Serve",
     o.fee as "Serving_Fee",
     o.tax as "Tax",
-    o.total_transactions as "Total_Transactions",
-    py.payment_name as "Payment_Type",
+    o.total_transactions as "Total_transaction",
+    py.payment_name as "Payment_type",
     o.status as "Status",
     o.created_at as "Date"
     from orders o
@@ -66,7 +67,6 @@ func (r *OrderRepository) RepositoryGetOrderDetail(Id, page int) ([]models.Order
 	ID := strconv.Itoa(Id)
 	query := `select
     o.id as "No Order",
-	op.id as "Order_products",
     p.product_name as "Product_name",
     op.hot_or_not as "Hot_or_not",
     s.size_name as "Size",
@@ -92,65 +92,140 @@ func (r *OrderRepository) RepositoryGetOrderDetail(Id, page int) ([]models.Order
 	return data, nil
 }
 
-func (r *OrderRepository) RepositoryCreateTransaction(bodyOrder *models.OrderModel, bodyOrderProducts *models.OrderDetailModel) error {
-	tx, err := r.Beginx()
+// func (r *OrderRepository) RepositoryCreateTransaction(bodyOrder *models.OrderModel, bodyOrderProducts *models.OrderDetailModel) error {
+// 	tx, err := r.Beginx()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	defer func() {
+// 		if err != nil {
+// 			tx.Rollback()
+// 		}
+// 	}()
+// 	queryOrder := `INSERT INTO orders(user_id, subtotal, promo_id, percent_discount, flat_discount, serve_id, fee, tax, total_transactions, payment_type, status)
+// 	VALUES (
+// 		(SELECT id FROM users WHERE user_name = :User), :Subtotal,
+// 		(select id from promos where id = 1),
+// 		(select flat_amount from promos where id = 1),
+// 		(select percent_amount from promos where id = 1),
+// 		(SELECT id FROM serve WHERE serve_type = :Serve),
+// 		(SELECT fee FROM serve WHERE serve_type = :Serve),
+// 		0.1,
+// 		:Total_transaction,
+// 		(SELECT id FROM payment_type WHERE payment_name = :Payment_type),
+// 		'On progress'
+// 	) returning id`
+// 	_, err = tx.NamedQuery(queryOrder, bodyOrder)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	// queryOrderProduct := `INSERT INTO orders_products (order_id, product_id,hot_or_not, size_id, price, quantity, subtotal)
+// 	// VALUES (
+// 	// 	$1,
+// 	// 	(SELECT id FROM products WHERE product_name = $2),
+// 	// 	$3,
+// 	// 	(SELECT id FROM sizes WHERE size_name = $4),
+// 	// 	(
+// 	// 		(SELECT price_default FROM products WHERE product_name = $2) +
+// 	// 		(SELECT additional_fee FROM sizes WHERE size_name = $4)
+// 	// 	),
+// 	// 	$5,
+// 	// 	(
+// 	// 		(
+// 	// 			(SELECT price_default FROM products WHERE product_name = $2) +
+// 	// 			(SELECT additional_fee FROM sizes WHERE size_name = $4)
+// 	// 		) * 3
+// 	// 	)
+// 	// )`
+// 	queryOrderProduct := `INSERT INTO orders_products (order_id, product_id,hot_or_not, size_id, price, quantity, subtotal)
+// 	VALUES (
+// 		55,
+// 		2,
+// 		true,
+// 		4,
+// 		20000,
+// 		5,
+// 		100000
+// 	)`
+// 	// fmt.Println(queryOrderProduct)
+// 	_, err = tx.Exec(queryOrderProduct) // bodyOrder.Id,
+// 	// bodyOrderProducts.Product_name,
+// 	// bodyOrderProducts.Hot_or_not,
+// 	// bodyOrderProducts.Size,
+// 	// bodyOrderProducts.Quantity
+// 	if err != nil {
+// 		return err
+// 	}
+// 	err = tx.Commit()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
+
+func (r *OrderRepository) RepositoryCreateOrder(bodyOrder *models.OrderModel, client *sqlx.Tx) (*sqlx.Rows, error) {
+	queryOrder := `
+        INSERT INTO orders(user_id, subtotal, promo_id, percent_discount, flat_discount, serve_id, fee, tax, total_transactions, payment_type, status)
+        VALUES (
+            (SELECT id FROM users WHERE user_name = :User), :Subtotal, 
+            (SELECT id FROM promos WHERE id = 1), 
+            (SELECT flat_amount FROM promos WHERE id = 1),
+            (SELECT percent_amount FROM promos WHERE id = 1),
+            (SELECT id FROM serve WHERE serve_type = :Serve),
+            (SELECT fee FROM serve WHERE serve_type = :Serve),
+            0.1,
+            :Total_transaction,
+            (SELECT id FROM payment_type WHERE payment_name = :Payment_type),
+            'On progress'
+        )
+        RETURNING id
+    `
+	rows, err := client.NamedQuery(queryOrder, bodyOrder)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		}
-	}()
-	queryOrder := `INSERT INTO orders(user_id, subtotal, promo_id, percent_discount, flat_discount, serve_id, fee, tax, total_transactions, payment_type, status)
-	VALUES (
-		(SELECT id FROM users WHERE user_name = :User), :Subtotal, 
-		(SELECT id FROM promos WHERE promo_code = :Promo), 
-		(SELECT percent_amount FROM promos WHERE promo_code = :Promo),
-		(SELECT flat_amount FROM promos WHERE promo_code = :Promo),
-		(SELECT id FROM serve WHERE serve_type = :Serve),
-		(SELECT fee FROM serve WHERE serve_type = :Serve),
-		0.1,
-		:Total_transaction,
-		(SELECT id FROM payment WHERE payment_name = :Payment_type),
-		'On progress'
-	) returning id`
-	err = tx.Get(&bodyOrder.Id, queryOrder, bodyOrder)
+	return rows, nil
+}
+
+func (r *OrderRepository) RepositoryCreateOrderProduct(bodyOrder *models.OrderModel, client *sqlx.Tx, orderId string) (*sqlx.Rows, error) {
+	queryOrder := `
+	INSERT INTO orders_products (order_id, product_id, hot_or_not, size_id, price, quantity, subtotal)
+		VALUES `
+	var filteredBody []string
+	filterBody := make(map[string]interface{})
+	filterBody["order_id"] = orderId
+
+	j := 2
+	for i := 0; i < len(bodyOrder.Product); i++ {
+		filteredBody = append(filteredBody, "(:order_id")
+		//
+		filteredBody = append(filteredBody, fmt.Sprintf(`(select id from products where product_name = :Product_name%d)`, j))
+		filterBody[fmt.Sprintf("Product_name%d", j)] = bodyOrder.Product[i].Product_name
+		//
+		filteredBody = append(filteredBody, fmt.Sprintf(`:Hot_or_not%d`, j))
+		filterBody[fmt.Sprintf("Hot_or_not%d", j)] = bodyOrder.Product[i].Hot_or_not
+		//
+		filteredBody = append(filteredBody, fmt.Sprintf(`(select id from sizes where size_name = :Size%d)`, j))
+		filterBody[fmt.Sprintf("Size%d", j)] = bodyOrder.Product[i].Size
+		//
+		filteredBody = append(filteredBody, fmt.Sprintf(`:Quantity%d`, j))
+		filterBody[fmt.Sprintf("quantity%d", j)] = bodyOrder.Product[i].Quantity
+		//
+		filteredBody = append(filteredBody, fmt.Sprintf(`:Price%d)`, j))
+		filterBody[fmt.Sprintf("Price%d", j)] = bodyOrder.Product[i].Price
+		//
+		filteredBody = append(filteredBody, fmt.Sprintf(`:Subtotal_product%d)`, j))
+		filterBody[fmt.Sprintf("Subtotal_product%d", j)] = bodyOrder.Product[i].Subtotal_product
+		j++
+	}
+	if len(filteredBody) > 0 {
+		queryOrder += strings.Join(filteredBody, ", ")
+	}
+	rows, err := client.NamedQuery(queryOrder, bodyOrder)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	queryOrderProduct := `INSERT INTO orders_products (order_id, product_id,hot_or_not, size_id, price, quantity, subtotal)
-	VALUES (
-		$1,
-		(SELECT id FROM products WHERE product_name = :Product_name),
-		:Hot_or_not,
-		(SELECT id FROM sizes WHERE size_name = :Size),
-		(
-			(SELECT price_default FROM products WHERE product_name = :Product_name) + 
-			(SELECT additional_fee FROM sizes WHERE size_name = :Size)
-		),
-		$3,
-		(
-			(
-				(SELECT price_default FROM products WHERE product_name = :Product_name) + 
-				(SELECT additional_fee FROM sizes WHERE size_name = :Size)
-			) * $3
-		)
-	)`
-	_, err = tx.Exec(queryOrderProduct,
-		bodyOrder.Id,
-		bodyOrderProducts.Product_name,
-		bodyOrderProducts.Hot_or_not,
-		bodyOrderProducts.Size,
-		bodyOrderProducts.Quantity)
-	if err != nil {
-		return err
-	}
-	err = tx.Commit()
-	if err != nil {
-		return err
-	}
-	return nil
+	return rows, nil
 }
 
 func (r *OrderRepository) RepositoryUpdateOrder(ID int, body *models.OrderModel) (sql.Result, error) {
@@ -164,42 +239,6 @@ func (r *OrderRepository) RepositoryUpdateOrder(ID int, body *models.OrderModel)
 	result, err := r.NamedExec(query, params)
 	return result, err
 }
-
-// func (r *OrderRepository) RepositoryUpdateOrderDetail(ID int, body *models.OrderDetailModel) error {
-// 	tx, err := r.Beginx()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer func() {
-// 		if err != nil {
-// 			tx.Rollback()
-// 		}
-// 	}()
-// 	queryOrderProducts := `update orders_products
-// 		set quantity = :Quantity,
-// 		subtotal = (select price from orders_products where id = :ID) * :Quantity
-// 		where id = :ID`
-// 	params := make(map[string]interface{})
-// 	params["Quantity"] = body.Quantity
-// 	params["ID"] = ID
-// 	query += ` updated_at = NOW() WHERE id = :Id`
-// 	_, err := tx.NamedExec(queryOrderProducts, params)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	queryOrder := `update orders
-// 		set total_transaction = (select sum (subtotal) from orders_products where order_id = :ID)
-// 		where id = (select order_id from order_products where id = :ID)`
-// 	_, err := tx.NamedExec(queryOrderProducts, params)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	err = tx.Commit()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
 
 // func (r *OrderRepository) RepositoryUpdateOrderDetail(ID int, body *models.OrderDetailModel) error {
 // 	var mtx = sync.Mutex{}

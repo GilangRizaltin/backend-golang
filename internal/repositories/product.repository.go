@@ -108,7 +108,7 @@ func (r *ProductRepository) RepositoryCreateProduct(body *models.ProductModel) e
 	return err
 }
 
-func (r *ProductRepository) RepositoryUpdateProduct(productID int, body *models.ProductModel) error {
+func (r *ProductRepository) RepositoryUpdateProduct(productID int, body *models.ProductModel) (sql.Result, error) {
 	var conditional []string
 	query := `
         UPDATE products
@@ -134,9 +134,9 @@ func (r *ProductRepository) RepositoryUpdateProduct(productID int, body *models.
 	}
 	params["Id"] = productID
 	query += ` update_at = NOW() WHERE id = :Id`
-	_, err := r.NamedExec(query, params)
-	fmt.Println(query)
-	return err
+	result, err := r.NamedExec(query, params)
+	// fmt.Println(query)
+	return result, err
 }
 
 func (r *ProductRepository) RepositoryDeleteProduct(productID int) (sql.Result, error) {

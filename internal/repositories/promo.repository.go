@@ -25,7 +25,7 @@ func (r *PromoRepository) RepositoryGetPromo(conditions []string, page int) ([]m
 	p.flat_amount as "Flat_amount",
 	p.percent_amount as "Percent_amount",
 	p.created_at as "Time_created",
-	p.ended_at as "Time_ended"
+	p.ended_at as "Ended_at"
 	from 
 	promos p 
 	join
@@ -36,7 +36,7 @@ func (r *PromoRepository) RepositoryGetPromo(conditions []string, page int) ([]m
 		conditional = append(conditional, "p.promo_code ilike '%"+conditions[0]+"%'")
 	}
 	if conditions[1] != "" {
-		conditional = append(conditional, "p.ended_at = "+conditions[1])
+		conditional = append(conditional, "p.ended_at < "+conditions[1])
 	}
 	if len(conditional) > 0 {
 		query += " WHERE " + strings.Join(conditional, " AND ")
@@ -50,8 +50,8 @@ func (r *PromoRepository) RepositoryGetPromo(conditions []string, page int) ([]m
 }
 
 func (r *PromoRepository) RepositoryCreatePromo(body *models.PromoModel) error {
-	query := `INSERT INTO promos (promo_code, promo_type, flat_amount, percent_amount, ended_at) 
-	VALUES (:Promo_code, (select from promos_type where promo_type_name = :Promo_type), :Flat_amount, :Percent_amount, :Ended_at) RETURNING promo_code, ended_at`
+	query := `INSERT INTO promos (promo_code, promo_type, flat_amount, percent_amount) 
+	VALUES (:Promo_code, (select id from promos_type where promo_type_name = :Promo_type), :Flat_amount, :Percent_amount) RETURNING promo_code`
 	_, err := r.NamedExec(query, body)
 	return err
 }
@@ -85,11 +85,35 @@ func (r *PromoRepository) RepositoryUpdatePromo(productID int, body *models.Prom
 
 func (r *PromoRepository) RepositoryDeletePromo(productID int) (sql.Result, error) {
 	query := `
-        DELETE FROM products
+        DELETE FROM PROMOS
         WHERE
-            id = $1
-		returning product_name;
+            id = $1;
     `
 	result, err := r.Exec(query, productID)
 	return result, err
+}
+
+func (r *PromoRepository) RepositoryCountPromo(conditions []string) ([]int, error) {
+	var total_data = []int{}
+	query := `
+		SELECT
+			COUNT(*) AS "Total_promo"
+		FROM
+			promos p `
+	var conditional []string
+	if conditions[0] != "" {
+		conditional = append(conditional, "p.promo_code ilike '%"+conditions[0]+"%'")
+	}
+	if conditions[1] != "" {
+		conditional = append(conditional, "p.ended_at = "+conditions[1])
+	}
+	if len(conditional) > 0 {
+		query += " WHERE " + strings.Join(conditional, " AND ")
+	}
+	err := r.Select(&total_data, query)
+	if err != nil {
+		// log.Fatalln(err)
+		return nil, err
+	}
+	return total_data, nil
 }

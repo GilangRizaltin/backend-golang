@@ -3,6 +3,7 @@ package repositories
 import (
 	"Backend_Golang/internal/models"
 	"database/sql"
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -130,13 +131,14 @@ func (r *UserRepository) RepositoryUpdateUser(productID int, body *models.UserMo
 		params["User_type"] = body.User_type
 	}
 	if len(conditional) == 1 {
-		query += conditional[0] + ", "
+		query += conditional[0]
 	}
 	if len(conditional) > 1 {
 		query += strings.Join(conditional, ", ")
 	}
 	params["Id"] = productID
-	query += ` update_at = NOW() WHERE id = :Id`
+	query += ` ,update_at = NOW() WHERE id = :Id`
+	fmt.Println(query)
 	result, err := r.NamedExec(query, params)
 	return result, err
 }

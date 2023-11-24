@@ -32,6 +32,7 @@ func (h *HandlerPromo) GetPromo(ctx *gin.Context) {
 		Sort,
 	}
 	result, err := h.RepositoryGetPromo(conditions, page)
+	data, _ := h.RepositoryCountPromo(conditions)
 	if err != nil {
 		log.Print(err)
 		ctx.JSON(http.StatusInternalServerError, err)
@@ -44,10 +45,17 @@ func (h *HandlerPromo) GetPromo(ctx *gin.Context) {
 		})
 		return
 	}
+	url := ctx.Request.URL.RawQuery
+	pages := ctx.Query("page")
+	nextPage, prevPage, lastPage := pagination(url, pages, "promo?", data[0], page)
 	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Get all promo success",
-		"data":    result,
-		"page":    page,
+		"message":    "Get all promo success",
+		"data":       result,
+		"page":       page,
+		"total_data": data[0],
+		"nextPage":   nextPage,
+		"prevPage":   prevPage,
+		"lastPage":   lastPage,
 	})
 }
 
@@ -104,11 +112,11 @@ func (h *HandlerPromo) DeletePromo(ctx *gin.Context) {
 	}
 	if rowsAffected == 0 {
 		ctx.JSON(http.StatusNotFound, gin.H{
-			"message": "Product not found",
+			"message": "Promo not found",
 		})
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Product successfully deleted",
+		"message": "Promo successfully deleted",
 	})
 }

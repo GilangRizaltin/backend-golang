@@ -147,9 +147,17 @@ func (h *HandlerProduct) UpdateProduct(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := h.RepositoryUpdateProduct(ID, &updateProduct); err != nil {
-		log.Fatalln(err)
+	result, err := h.RepositoryUpdateProduct(ID, &updateProduct)
+	if err != nil {
+		// log.Fatalln(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"message": "Product not found",
+		})
 		return
 	}
 	ctx.JSON(http.StatusCreated, gin.H{

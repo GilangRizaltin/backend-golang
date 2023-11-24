@@ -83,24 +83,6 @@ func (h *HandlerOrder) GetOrderOnDetail(ctx *gin.Context) {
 }
 
 func (h *HandlerOrder) CreateOrder(ctx *gin.Context) {
-	var newOrder models.OrderModel
-	var newOrderDetail models.OrderDetailModel
-	if err := ctx.ShouldBindJSON(&newOrder); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	if err := ctx.ShouldBindJSON(&newOrderDetail); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	err := h.RepositoryCreateTransaction(&newOrder, &newOrderDetail)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	ctx.JSON(http.StatusCreated, gin.H{
-		"message": "Order transaction created successfully",
-	})
 }
 
 func (h *HandlerOrder) UpdateOrder(ctx *gin.Context) {

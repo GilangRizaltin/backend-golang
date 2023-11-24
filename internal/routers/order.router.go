@@ -14,7 +14,7 @@ func RouterOrder(g *gin.Engine, db *sqlx.DB) {
 	handler := handlers.InitializeOrderHandler(repository)
 	route.GET("", handler.GetOrder)
 	route.GET("/:order_id", handler.GetOrderOnDetail)
-	// route.POST("", handler.CreateProduct)
+	route.POST("", handler.CreateOrder)
 	route.PATCH("/:id", handler.UpdateOrder)
 	// route.PATCH("/:order_product_id", handler.UpdateOrderDetail)
 	route.DELETE("/:order_id", handler.DeleteOrder)
