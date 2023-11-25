@@ -20,28 +20,24 @@ func InitializeUserHandler(r *repositories.UserRepository) *HandlerUser {
 }
 
 func (h *HandlerUser) GetUser(ctx *gin.Context) {
-	User_id := ctx.Query("user-id")
-	User_name := ctx.Query("user-name")
-	Full_name := ctx.Query("full-name")
-	Email := ctx.Query("e-mail")
-	Phone := ctx.Query("phone")
-	Sortby := ctx.Query("sort-by")
-	SortOrder := ctx.Query("sort-order")
-	page, _ := strconv.Atoi(ctx.Query("page"))
-	if page == 0 {
+	var query models.QueryParamsUser
+	var page int
+	if query.Page == 0 {
 		page = 1
 	}
-	filter := []string{
-		User_id,
-		User_name,
-		Full_name,
-		Email,
-		Phone,
-		Sortby,
-		SortOrder,
+	url := ctx.Request.URL.RawQuery
+	pages := ctx.Query("page")
+	if query.Page == 0 {
+		query.Page = 1
 	}
-	result, err := h.RepositoryGetUser(filter, page)
-	data, _ := h.RepositoryCountUser(filter)
+	if err := ctx.ShouldBindQuery(&query); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "Error in binding query get user",
+			"Error":   err,
+		})
+	}
+	result, err := h.RepositoryGetUser(&query)
+	data, _ := h.RepositoryCountUser(&query)
 	if err != nil {
 		log.Print(err)
 		ctx.JSON(http.StatusInternalServerError, err)
@@ -53,14 +49,12 @@ func (h *HandlerUser) GetUser(ctx *gin.Context) {
 		})
 		return
 	}
-	url := ctx.Request.URL.RawQuery
-	pages := ctx.Query("page")
-	nextPage, prevPage, lastPage := pagination(url, pages, "user?", data[0], page)
+	nextPage, prevPage, lastPage := metaPagination(url, pages, "user?", data, page)
 	ctx.JSON(http.StatusOK, gin.H{
 		"message":    "Get all users success",
 		"data":       result,
-		"page":       page,
-		"total_data": data[0],
+		"total_data": data,
+		"Page":       query.Page,
 		"nextPage":   nextPage,
 		"prevPage":   prevPage,
 		"lastPage":   lastPage,
@@ -88,18 +82,21 @@ func (h *HandlerUser) GetUserProfile(ctx *gin.Context) {
 }
 
 func (h *HandlerUser) RegisterUser(ctx *gin.Context) {
-	var newUser models.UserModel
-	if err := ctx.ShouldBind(&newUser); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	var body models.UserModel
+	if err := ctx.ShouldBind(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "Error in binding body register user",
+			"error":   err,
+		})
 		return
 	}
-	if newUser.Full_name == nil || newUser.Email == "" || newUser.Password == "" {
+	if body.Full_name == nil || body.Email == "" || body.Password == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"message": "Please fill all data",
 		})
 		return
 	}
-	err := h.RepositoryRegisterUser(&newUser)
+	res, err := h.RepositoryRegisterUser(&body)
 	if err != nil {
 		if strings.Contains(err.Error(), "users_email_key") {
 			ctx.JSON(http.StatusBadRequest, gin.H{
@@ -107,34 +104,27 @@ func (h *HandlerUser) RegisterUser(ctx *gin.Context) {
 			})
 			return
 		}
-		// if strings.Contains(err.Error(), "users_phone_key") {
-		// 	ctx.JSON(http.StatusBadRequest, gin.H{
-		// 		"message": "Phone number already used",
-		// 	})
-		// 	return
-		// }
-		// if strings.Contains(err.Error(), "users_user_name_key") {
-		// 	ctx.JSON(http.StatusBadRequest, gin.H{
-		// 		"message": "Username already used",
-		// 	})
-		// 	return
-		// }
 		log.Fatalln(err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	ctx.JSON(http.StatusCreated, gin.H{
 		"message": "User created successfully",
-		"User":    newUser.Full_name})
+		"User":    body.Full_name,
+		"data":    res,
+	})
 }
 
 func (h *HandlerUser) AddUser(ctx *gin.Context) {
-	var newUser models.UserModel
-	if err := ctx.ShouldBind(&newUser); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	var body models.UserModel
+	if err := ctx.ShouldBind(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "Error in binding body add user",
+			"error":   err,
+		})
 		return
 	}
-	err := h.RepositoryAddUser(&newUser)
+	err := h.RepositoryAddUser(&body)
 	if err != nil {
 		if strings.Contains(err.Error(), "users_email_key") {
 			ctx.JSON(http.StatusBadRequest, gin.H{
@@ -160,17 +150,20 @@ func (h *HandlerUser) AddUser(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusCreated, gin.H{
 		"message":      "User created successfully",
-		"Product_Name": newUser.User_name})
+		"Product_Name": body.User_name})
 }
 
 func (h *HandlerUser) EditUserProfile(ctx *gin.Context) {
-	var updateUser models.UserModel
+	var body models.UserModel
 	ID, _ := strconv.Atoi(ctx.Param("id"))
-	if err := ctx.ShouldBind(&updateUser); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := ctx.ShouldBind(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "Error in binding body update user",
+			"error":   err,
+		})
 		return
 	}
-	result, err := h.RepositoryUpdateUser(ID, &updateUser)
+	result, err := h.RepositoryUpdateUser(ID, &body)
 	rowsAffected, _ := result.RowsAffected()
 	if err != nil {
 		log.Println(err)

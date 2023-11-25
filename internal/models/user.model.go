@@ -14,3 +14,13 @@ type UserModel struct {
 	// Created_at    *time.Time  `db:"created_at"`
 	// Updated_at    *time.Time  `db:"updated_at"`
 }
+
+type QueryParamsUser struct {
+	Userid    string `form:"User_id" json:"User_id"`
+	Username  string `form:"User_name" json:"User_name"`
+	Fullname  string `form:"Full_name" json:"Full_name"`
+	Email     string `form:"Email" json:"Email"`
+	Phone     string `form:"Phone" json:"Phone"`
+	SortOrder string `form:"SortOrder" json:"SortOrder"`
+	Page      int    `form:"Page" json:"Page"`
+}

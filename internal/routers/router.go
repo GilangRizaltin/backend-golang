@@ -1,6 +1,7 @@
 package routers
 
 import (
+	"Backend_Golang/internal/middlewares"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -14,6 +15,7 @@ func New(db *sqlx.DB) *gin.Engine {
 			"message": "success",
 		})
 	})
+	router.Use(middlewares.CORSMiddleware)
 	RouterProduct(router, db)
 	RouterPromo(router, db)
 	RouterUser(router, db)

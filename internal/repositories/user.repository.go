@@ -19,7 +19,7 @@ func InitializeUserRepository(db *sqlx.DB) *UserRepository {
 	return &UserRepository{db}
 }
 
-func (r *UserRepository) RepositoryGetUser(conditions []string, page int) ([]models.UserModel, error) {
+func (r *UserRepository) RepositoryGetUser(body *models.QueryParamsUser) ([]models.UserModel, error) {
 	data := []models.UserModel{}
 	query := `
 	select u.id as "No",
@@ -34,29 +34,35 @@ func (r *UserRepository) RepositoryGetUser(conditions []string, page int) ([]mod
 	from users u
 	`
 	var conditional []string
-	if conditions[0] != "" {
-		conditional = append(conditional, "u.id = "+conditions[0]+"")
+	values := []any{}
+	if body.Userid != "" {
+		conditional = append(conditional, "u.id = $"+fmt.Sprint(len(values)+1))
+		values = append(values, body.Userid)
 	}
-	if conditions[1] != "" {
-		conditional = append(conditional, "u.user_name ilike '%"+conditions[1]+"%'")
+	if body.Username != "" {
+		conditional = append(conditional, "u.user_name ILIKE $"+fmt.Sprint(len(values)+1))
+		values = append(values, "%"+body.Username+"%")
 	}
-	if conditions[2] != "" {
-		conditional = append(conditional, "u.full_name ilike '%"+conditions[2]+"%'")
+	if body.Fullname != "" {
+		conditional = append(conditional, "u.full_name ILIKE $"+fmt.Sprint(len(values)+1))
+		values = append(values, "%"+body.Fullname+"%")
 	}
-	if conditions[3] != "" {
-		conditional = append(conditional, "u.email ilike '%"+conditions[3]+"%'")
+	if body.Email != "" {
+		conditional = append(conditional, "u.email ILIKE $"+fmt.Sprint(len(values)+1))
+		values = append(values, "%"+body.Email+"%")
 	}
-	if conditions[4] != "" {
-		conditional = append(conditional, "u.phone ilike '%"+conditions[4]+"%'")
+	if body.Phone != "" {
+		conditional = append(conditional, "u.phone ILIKE $"+fmt.Sprint(len(values)+1))
+		values = append(values, "%"+body.Phone+"%")
 	}
 	if len(conditional) > 0 {
 		query += " WHERE " + strings.Join(conditional, " AND ")
 	}
-	if conditions[5] != "" && conditions[6] != "" {
-		query += " ORDER BY " + conditions[5] + " " + conditions[6]
+	if body.SortOrder != "" {
+		query += " ORDER BY u.id " + body.SortOrder
 	}
-	query += " LIMIT 6 OFFSET " + strconv.Itoa((page-1)*3)
-	err := r.Select(&data, query)
+	query += " LIMIT 6 OFFSET " + strconv.Itoa((body.Page-1)*3)
+	err := r.Select(&data, query, values...)
 	if err != nil {
 		return nil, err
 	}
@@ -84,12 +90,15 @@ func (r *UserRepository) RepositoryGetUserProfile(ID string) ([]models.UserModel
 	return data, nil
 }
 
-func (r *UserRepository) RepositoryRegisterUser(body *models.UserModel) error {
+func (r *UserRepository) RepositoryRegisterUser(body *models.UserModel) (*sqlx.Rows, error) {
 	query := `
 	insert into users(full_name, email, user_type, password_user) VALUES (:Full_name, :Email, 'Normal User', :Password) returning id, full_name
     `
-	_, err := r.NamedExec(query, body)
-	return err
+	result, err := r.NamedQuery(query, body)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (r *UserRepository) RepositoryAddUser(body *models.UserModel) error {
@@ -145,45 +154,53 @@ func (r *UserRepository) RepositoryUpdateUser(productID int, body *models.UserMo
 
 func (r *UserRepository) RepositoryDeleteUser(userID int) (sql.Result, error) {
 	query := `
-        DELETE FROM users
-        WHERE
-            id = $1
+        update users
+        set 
+		deleted_at = now ()
+        where id = $1
 		returning full_name;
     `
 	result, err := r.Exec(query, userID)
 	return result, err
 }
 
-func (r *UserRepository) RepositoryCountUser(conditions []string) ([]int, error) {
-	var total_data = []int{}
+func (r *UserRepository) RepositoryCountUser(body *models.QueryParamsUser) (int, error) {
+	var totalData int
 	query := `
 		SELECT
-			COUNT(*) AS "Total_product"
+			COUNT(*) AS "Total_user"
 		FROM
 			users u `
 	var conditional []string
-	if conditions[0] != "" {
-		conditional = append(conditional, "u.id = "+conditions[0]+"")
+	values := []any{}
+	if body.Userid != "" {
+		conditional = append(conditional, "u.id = $"+fmt.Sprint(len(values)+1))
+		values = append(values, body.Userid)
 	}
-	if conditions[1] != "" {
-		conditional = append(conditional, "u.user_name ilike '%"+conditions[1]+"%'")
+	if body.Username != "" {
+		conditional = append(conditional, "u.user_name ILIKE $"+fmt.Sprint(len(values)+1))
+		values = append(values, "%"+body.Username+"%")
 	}
-	if conditions[2] != "" {
-		conditional = append(conditional, "u.full_name ilike '%"+conditions[2]+"%'")
+	if body.Fullname != "" {
+		conditional = append(conditional, "u.full_name ILIKE $"+fmt.Sprint(len(values)+1))
+		values = append(values, "%"+body.Fullname+"%")
 	}
-	if conditions[3] != "" {
-		conditional = append(conditional, "u.email ilike '%"+conditions[3]+"%'")
+	if body.Email != "" {
+		conditional = append(conditional, "u.email ILIKE $"+fmt.Sprint(len(values)+1))
+		values = append(values, "%"+body.Email+"%")
 	}
-	if conditions[4] != "" {
-		conditional = append(conditional, "u.phone ilike '%"+conditions[4]+"%'")
+	if body.Phone != "" {
+		conditional = append(conditional, "u.phone ILIKE $"+fmt.Sprint(len(values)+1))
+		values = append(values, "%"+body.Phone+"%")
 	}
 	if len(conditional) > 0 {
 		query += " WHERE " + strings.Join(conditional, " AND ")
 	}
-	err := r.Select(&total_data, query)
+	// fmt.Println(query)
+	err := r.Get(&totalData, query, values...)
 	if err != nil {
 		log.Fatalln(err)
-		return nil, err
+		return 0, err
 	}
-	return total_data, nil
+	return totalData, nil
 }

@@ -209,3 +209,23 @@ func pagination(url, pages, endpoint string, totalData, page int) (string, strin
 	}
 	return nextPage, prevPage, lastPage
 }
+
+func metaPagination(url, pages, endpoint string, totalData, page int) (string, string, int) {
+	var nextPage string
+	var prevPage string
+	lastPage := int(math.Ceil(float64(totalData) / 6))
+	linkPage := "localhost:6121/" + endpoint + url
+	nextPage = linkPage[:len(linkPage)-1] + strconv.Itoa(page+1)
+	prevPage = linkPage[:len(linkPage)-1] + strconv.Itoa(page-1)
+	if pages == "" {
+		nextPage = linkPage + "&page=" + strconv.Itoa(page+1)
+		prevPage = linkPage + "&page=" + strconv.Itoa(page-1)
+	}
+	if page == int(lastPage) {
+		nextPage = "null"
+	}
+	if page == 1 {
+		prevPage = "null"
+	}
+	return nextPage, prevPage, lastPage
+}
