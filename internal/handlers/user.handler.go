@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/asaskevich/govalidator"
 	"github.com/gin-gonic/gin"
 )
 
@@ -35,6 +36,13 @@ func (h *HandlerUser) GetUser(ctx *gin.Context) {
 			"message": "Error in binding query get user",
 			"Error":   err,
 		})
+	}
+	if _, err := govalidator.ValidateStruct(&query); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "Error in Validator",
+			"Error":   err.Error(),
+		})
+		return
 	}
 	result, err := h.RepositoryGetUser(&query)
 	data, _ := h.RepositoryCountUser(&query)
