@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/asaskevich/govalidator"
 	"github.com/gin-gonic/gin"
 )
 
@@ -21,54 +22,42 @@ func InitializeHandler(r *repositories.ProductRepository) *HandlerProduct {
 }
 
 func (h *HandlerProduct) GetProduct(ctx *gin.Context) {
-	Product_Name := ctx.Query("search")
-	Maximum_Product_Price := ctx.Query("max_price")
-	Minimum_Product_Price := ctx.Query("min_price")
-	Product_Category := ctx.Query("product_category")
-	sortBy := ctx.Query("sort")
-	page, _ := strconv.Atoi(ctx.Query("page"))
-	if page == 0 {
+	var query models.QueryParamsProduct
+	var page int
+	if query.Page == 0 {
 		page = 1
 	}
-	if Maximum_Product_Price != "" || Minimum_Product_Price != "" {
-		if Maximum_Product_Price != "" {
-			_, errMax := strconv.Atoi(Maximum_Product_Price)
-			if errMax != nil {
-				ctx.JSON(http.StatusBadRequest, gin.H{
-					"message": "Please input right number",
-				})
-				return
-			}
-		}
-		if Minimum_Product_Price != "" {
-			_, errMin := strconv.Atoi(Minimum_Product_Price)
-			if errMin != nil {
-				ctx.JSON(http.StatusBadRequest, gin.H{
-					"message": "Please input right number",
-				})
-				return
-			}
-		}
-		if Maximum_Product_Price != "" && Minimum_Product_Price != "" {
-			priceMax, _ := strconv.Atoi(Maximum_Product_Price)
-			priceMin, _ := strconv.Atoi(Minimum_Product_Price)
-			if priceMax < priceMin {
-				ctx.JSON(http.StatusBadRequest, gin.H{
-					"message": "Maximum price must be greater than Minimum price",
-				})
-				return
-			}
-		}
+	if err := ctx.ShouldBindQuery(&query); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "Error in binding query get user",
+			"Error":   err,
+		})
 	}
-	conditions := []string{
-		Product_Name,
-		Maximum_Product_Price,
-		Minimum_Product_Price,
-		Product_Category,
-		sortBy,
+	if query.MaximumPrice != 0 || query.MinimumPrice != 0 {
+		if query.MaximumPrice < query.MinimumPrice {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"message": "Maximum price must be greater than Minimum price",
+			})
+			return
+		}
+
 	}
-	result, err := h.RepositoryGet(conditions, page)
-	data, _ := h.RepositoryCountProduct(conditions)
+	if _, err := govalidator.ValidateStruct(&query); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "Error in Validator",
+			"Error":   err.Error(),
+		})
+		return
+	}
+	// conditions := []string{
+	// 	Product_Name,
+	// 	Maximum_Product_Price,
+	// 	Minimum_Product_Price,
+	// 	Product_Category,
+	// 	sortBy,
+	// }
+	result, err := h.RepositoryGet(&query)
+	data, _ := h.RepositoryCountProduct(&query)
 	//error handling
 	if err != nil {
 		if strings.Contains(err.Error(), "trailing junk after numeric literal") {
@@ -123,15 +112,31 @@ func (h *HandlerProduct) GetProductDetail(ctx *gin.Context) {
 func (h *HandlerProduct) CreateProduct(ctx *gin.Context) {
 	var newProduct models.ProductModel
 	if err := ctx.ShouldBind(&newProduct); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "Error in binding query product",
+			"error":   err.Error(),
+		})
 		return
 	}
-	if newProduct.Category == "" || newProduct.Product_name == "" || newProduct.Description == "" || newProduct.Price_default == 0 {
+	// if newProduct.Category == "" || newProduct.Product_name == "" || newProduct.Description == "" || newProduct.Price_default == 0 {
+	// 	ctx.JSON(http.StatusBadRequest, gin.H{
+	// 		"message": "Please fullfill all data"})
+	// 	return
+	// }
+	if _, err := govalidator.ValidateStruct(&newProduct); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Please fullfill all data"})
+			"message": "Error in Validator",
+			"Error":   err.Error(),
+		})
 		return
 	}
 	if err := h.RepositoryCreateProduct(&newProduct); err != nil {
+		if strings.Contains(err.Error(), "unique_product_name") {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"message": "Product name already used",
+			})
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -141,7 +146,7 @@ func (h *HandlerProduct) CreateProduct(ctx *gin.Context) {
 }
 
 func (h *HandlerProduct) UpdateProduct(ctx *gin.Context) {
-	var updateProduct models.ProductModel
+	var updateProduct models.UpdateProduct
 	ID, _ := strconv.Atoi(ctx.Param("id"))
 	if err := ctx.ShouldBind(&updateProduct); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -149,7 +154,12 @@ func (h *HandlerProduct) UpdateProduct(ctx *gin.Context) {
 	}
 	result, err := h.RepositoryUpdateProduct(ID, &updateProduct)
 	if err != nil {
-		// log.Fatalln(err)
+		if strings.Contains(err.Error(), "unique_product_name") {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"message": "Product name already used",
+			})
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

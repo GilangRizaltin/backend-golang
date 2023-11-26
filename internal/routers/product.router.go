@@ -2,6 +2,7 @@ package routers
 
 import (
 	"Backend_Golang/internal/handlers"
+	"Backend_Golang/internal/middlewares"
 	"Backend_Golang/internal/repositories"
 
 	"github.com/gin-gonic/gin"
@@ -13,8 +14,8 @@ func RouterProduct(g *gin.Engine, db *sqlx.DB) {
 	repository := repositories.InitializeRepository(db)
 	handler := handlers.InitializeHandler(repository)
 	route.GET("", handler.GetProduct)
-	route.GET("/:id", handler.GetProductDetail)
-	route.POST("", handler.CreateProduct)
-	route.PATCH("/:id", handler.UpdateProduct)
-	route.DELETE("/:id", handler.DeleteProduct)
+	route.GET("/:id", middlewares.JWTIsLogin(), handler.GetProductDetail)
+	route.POST("", middlewares.JWTGate("Admin"), handler.CreateProduct)
+	route.PATCH("/:id", middlewares.JWTGate("Admin"), handler.UpdateProduct)
+	route.DELETE("/:id", middlewares.JWTGate("Admin"), handler.DeleteProduct)
 }

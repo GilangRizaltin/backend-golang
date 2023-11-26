@@ -4,7 +4,6 @@ import (
 	"Backend_Golang/internal/models"
 	"database/sql"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 
@@ -19,7 +18,7 @@ func InitializeRepository(db *sqlx.DB) *ProductRepository {
 	return &ProductRepository{db}
 }
 
-func (r *ProductRepository) RepositoryGet(conditions []string, page int) ([]models.ProductModel, error) {
+func (r *ProductRepository) RepositoryGet(body *models.QueryParamsProduct) ([]models.ProductModel, error) {
 	data := []models.ProductModel{}
 	query := `
 		SELECT
@@ -34,45 +33,67 @@ func (r *ProductRepository) RepositoryGet(conditions []string, page int) ([]mode
 			categories c ON p.category = c.id
 	`
 	var conditional []string
-	if conditions[0] != "" {
-		conditional = append(conditional, "p.product_name ilike '%"+conditions[0]+"%'")
-	}
-	if conditions[1] != "" {
-		conditional = append(conditional, "p.price_default < "+conditions[1])
-	}
-	if conditions[2] != "" {
-		conditional = append(conditional, "p.price_default > "+conditions[2])
-	}
-	// if conditions[3] != "" {
-	// 	conditional = append(conditional, "p.category = (SELECT id FROM categories c WHERE c.category_name = 'Coffee')")
+	values := []any{}
+	// if conditions[0] != "" {
+	// 	conditional = append(conditional, "p.product_name ilike '%"+conditions[0]+"%'")
 	// }
-	if conditions[3] != "" {
-		conditional = append(conditional, "c.category_name = 'Coffee'")
+	// if conditions[1] != "" {
+	// 	conditional = append(conditional, "p.price_default < "+conditions[1])
+	// }
+	// if conditions[2] != "" {
+	// 	conditional = append(conditional, "p.price_default > "+conditions[2])
+	// }
+	// if conditions[3] != "" {
+	// 	conditional = append(conditional, "c.category_name = 'Coffee'")
+	// }
+	if body.ProductId != 0 {
+		conditional = append(conditional, "p.id = $"+fmt.Sprint(len(values)+1))
+		values = append(values, body.ProductId)
+	}
+	if body.ProductName != "" {
+		conditional = append(conditional, "p.product_name ilike $"+fmt.Sprint(len(values)+1))
+		values = append(values, "%"+body.ProductName+"%")
+	}
+	if body.MaximumPrice != 0 {
+		conditional = append(conditional, "p.price_default <  $"+fmt.Sprint(len(values)+1))
+		values = append(values, body.MaximumPrice)
+	}
+	if body.MinimumPrice != 0 {
+		conditional = append(conditional, "p.price_default >  $"+fmt.Sprint(len(values)+1))
+		values = append(values, body.MinimumPrice)
+	}
+	if body.ProductCategory != "" {
+		conditional = append(conditional, "c.category_name = $"+fmt.Sprint(len(values)+1))
+		values = append(values, body.ProductCategory)
 	}
 	if len(conditional) > 0 {
 		query += " WHERE " + strings.Join(conditional, " AND ")
 	}
-	if conditions[4] != "" {
+	if body.Sort == "" {
+		query += " ORDER BY p.id asc"
+	}
+	if body.Sort != "" {
 		query += " ORDER BY "
-		if conditions[4] == "Cheapest" {
+		if body.Sort == "Cheapest" {
 			query += " p.price_default asc"
 		}
-		if conditions[4] == "Most Expensive" {
+		if body.Sort == "Most Expensive" {
 			query += " p.price_default desc"
 		}
-		if conditions[4] == "New Product" {
+		if body.Sort == "New Product" {
 			query += " p.created_at desc"
 		}
-		if conditions[4] == "Oldest" {
+		if body.Sort == "Oldest" {
 			query += " p.created_at asc"
 		}
-		if conditions[4] == "" {
-			query += " p.id asc"
-		}
 	}
-	query += " LIMIT 6 OFFSET " + strconv.Itoa((page-1)*3)
-	err := r.Select(&data, query)
-	fmt.Println(query)
+	var page = body.Page
+	if body.Page == 0 {
+		page = 1
+	}
+	query += " LIMIT 6 OFFSET " + strconv.Itoa((page-1)*6)
+	err := r.Select(&data, query, values...)
+	// fmt.Println(query)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +129,7 @@ func (r *ProductRepository) RepositoryCreateProduct(body *models.ProductModel) e
 	return err
 }
 
-func (r *ProductRepository) RepositoryUpdateProduct(productID int, body *models.ProductModel) (sql.Result, error) {
+func (r *ProductRepository) RepositoryUpdateProduct(productID int, body *models.UpdateProduct) (sql.Result, error) {
 	var conditional []string
 	query := `
         UPDATE products
@@ -141,43 +162,50 @@ func (r *ProductRepository) RepositoryUpdateProduct(productID int, body *models.
 
 func (r *ProductRepository) RepositoryDeleteProduct(productID int) (sql.Result, error) {
 	query := `
-        DELETE FROM products
-        WHERE
-            id = $1
-		returning product_name;
+        update products set deleted_at = now() where id = $1;
     `
 	result, err := r.Exec(query, productID)
 	return result, err
 }
 
-func (r *ProductRepository) RepositoryCountProduct(conditions []string) ([]int, error) {
+func (r *ProductRepository) RepositoryCountProduct(body *models.QueryParamsProduct) ([]int, error) {
 	var total_data = []int{}
 	query := `
 		SELECT
 			COUNT(*) AS "Total_product"
 		FROM
-			products p `
+			products p 
+		JOIN
+			categories c ON p.category = c.id`
 	var conditional []string
-	if conditions[0] != "" {
-		conditional = append(conditional, "p.product_name ilike '%"+conditions[0]+"%'")
+	values := []any{}
+	if body.ProductId != 0 {
+		conditional = append(conditional, "p.id = $"+fmt.Sprint(len(values)+1))
+		values = append(values, body.ProductId)
 	}
-	if conditions[2] != "" {
-		maxprice, _ := strconv.Atoi(conditions[1])
-		conditional = append(conditional, "p.price_default < "+strconv.Itoa(maxprice))
+	if body.ProductName != "" {
+		conditional = append(conditional, "p.product_name ilike $"+fmt.Sprint(len(values)+1))
+		values = append(values, "%"+body.ProductName+"%")
 	}
-	if conditions[2] != "" {
-		minprice, _ := strconv.Atoi(conditions[1])
-		conditional = append(conditional, "p.price_default > "+strconv.Itoa(minprice))
+	if body.MaximumPrice != 0 {
+		conditional = append(conditional, "p.price_default <  $"+fmt.Sprint(len(values)+1))
+		values = append(values, body.MaximumPrice)
 	}
-	if conditions[3] != "" {
-		conditional = append(conditional, "p.category = "+conditions[3])
+	if body.MinimumPrice != 0 {
+		conditional = append(conditional, "p.price_default >  $"+fmt.Sprint(len(values)+1))
+		values = append(values, body.MinimumPrice)
+	}
+	if body.ProductCategory != "" {
+		conditional = append(conditional, "c.category_name = $"+fmt.Sprint(len(values)+1))
+		values = append(values, body.ProductCategory)
 	}
 	if len(conditional) > 0 {
 		query += " WHERE " + strings.Join(conditional, " AND ")
 	}
-	err := r.Select(&total_data, query)
+	err := r.Select(&total_data, query, values...)
 	if err != nil {
-		log.Fatalln(err)
+		// log.Fatalln(err)
+		fmt.Println(query)
 		return nil, err
 	}
 	return total_data, nil
