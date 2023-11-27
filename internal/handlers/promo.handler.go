@@ -19,20 +19,24 @@ func InitializePromoHandler(r *repositories.PromoRepository) *HandlerPromo {
 }
 
 func (h *HandlerPromo) GetPromo(ctx *gin.Context) {
-	Promo_code := ctx.Query("promo-code")
-	Time_end := ctx.Query("time-end")
-	Sort := ctx.Query("sort")
-	page, _ := strconv.Atoi(ctx.Query("page"))
-	if page == 0 {
+	var query models.QueryParamsPromo
+	var page int
+	if query.Page == 0 {
 		page = 1
 	}
-	conditions := []string{
-		Promo_code,
-		Time_end,
-		Sort,
+	// conditions := []string{
+	// 	Promo_code,
+	// 	Time_end,
+	// 	Sort,
+	// }
+	if err := ctx.ShouldBindQuery(&query); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "Error in binding query get user",
+			"Error":   err,
+		})
 	}
-	result, err := h.RepositoryGetPromo(conditions, page)
-	data, _ := h.RepositoryCountPromo(conditions)
+	result, err := h.RepositoryGetPromo(&query)
+	data, _ := h.RepositoryCountPromo(&query)
 	if err != nil {
 		log.Print(err)
 		ctx.JSON(http.StatusInternalServerError, err)

@@ -3,6 +3,7 @@ package repositories
 import (
 	"Backend_Golang/internal/models"
 	"database/sql"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -17,7 +18,7 @@ func InitializePromoRepository(db *sqlx.DB) *PromoRepository {
 	return &PromoRepository{db}
 }
 
-func (r *PromoRepository) RepositoryGetPromo(conditions []string, page int) ([]models.PromoModel, error) {
+func (r *PromoRepository) RepositoryGetPromo(body *models.QueryParamsPromo) ([]models.PromoModel, error) {
 	data := []models.PromoModel{}
 	query := `select p.id as "No",
 	p.promo_code as "Promo_code",
@@ -32,17 +33,20 @@ func (r *PromoRepository) RepositoryGetPromo(conditions []string, page int) ([]m
 	promos_type pt on p.promo_type = pt.id
 	`
 	var conditional []string
-	if conditions[0] != "" {
-		conditional = append(conditional, "p.promo_code ilike '%"+conditions[0]+"%'")
+	values := []any{}
+	if body.Promo_code != "" {
+		conditional = append(conditional, "p.promo_code ilike $"+fmt.Sprint(len(values)+1))
+		values = append(values, "%"+body.Promo_code+"%")
 	}
-	if conditions[1] != "" {
-		conditional = append(conditional, "p.ended_at < "+conditions[1])
+	if body.Time_end.String() != "" {
+		conditional = append(conditional, "p.ended_at < $"+fmt.Sprint(len(values)+1))
+		values = append(values, body.Time_end.String())
 	}
 	if len(conditional) > 0 {
 		query += " WHERE " + strings.Join(conditional, " AND ")
 	}
-	query += " LIMIT 6 OFFSET " + strconv.Itoa((page-1)*3)
-	err := r.Select(&data, query)
+	query += " LIMIT 6 OFFSET " + strconv.Itoa((body.Page-1)*6)
+	err := r.Select(&data, query, values...)
 	if err != nil {
 		return nil, err
 	}
@@ -85,15 +89,13 @@ func (r *PromoRepository) RepositoryUpdatePromo(productID int, body *models.Prom
 
 func (r *PromoRepository) RepositoryDeletePromo(productID int) (sql.Result, error) {
 	query := `
-        DELETE FROM PROMOS
-        WHERE
-            id = $1;
-    `
+	update products set deleted_at = now() where id = $1;
+	`
 	result, err := r.Exec(query, productID)
 	return result, err
 }
 
-func (r *PromoRepository) RepositoryCountPromo(conditions []string) ([]int, error) {
+func (r *PromoRepository) RepositoryCountPromo(body *models.QueryParamsPromo) ([]int, error) {
 	var total_data = []int{}
 	query := `
 		SELECT
@@ -101,16 +103,19 @@ func (r *PromoRepository) RepositoryCountPromo(conditions []string) ([]int, erro
 		FROM
 			promos p `
 	var conditional []string
-	if conditions[0] != "" {
-		conditional = append(conditional, "p.promo_code ilike '%"+conditions[0]+"%'")
+	values := []any{}
+	if body.Promo_code != "" {
+		conditional = append(conditional, "p.promo_code ilike $"+fmt.Sprint(len(values)+1))
+		values = append(values, "%"+body.Promo_code+"%")
 	}
-	if conditions[1] != "" {
-		conditional = append(conditional, "p.ended_at = "+conditions[1])
+	if body.Time_end.String() != "" {
+		conditional = append(conditional, "p.ended_at < $"+fmt.Sprint(len(values)+1))
+		values = append(values, body.Time_end.String())
 	}
 	if len(conditional) > 0 {
 		query += " WHERE " + strings.Join(conditional, " AND ")
 	}
-	err := r.Select(&total_data, query)
+	err := r.Select(&total_data, query, values...)
 	if err != nil {
 		// log.Fatalln(err)
 		return nil, err
