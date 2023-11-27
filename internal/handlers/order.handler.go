@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/asaskevich/govalidator"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,18 +20,23 @@ func InitializeOrderHandler(r *repositories.OrderRepository) *HandlerOrder {
 }
 
 func (h *HandlerOrder) GetOrder(ctx *gin.Context) {
-	Status := ctx.Query("status")
-	Sort := ctx.Query("sort")
-	page, _ := strconv.Atoi(ctx.Query("page"))
-	if page == 0 {
+	var query models.QueryParamsOrder
+	var page int
+	if query.Page == 0 {
 		page = 1
 	}
-	filter := []string{
-		Status,
-		Sort,
+	// filter := []string{
+	// 	Status,
+	// 	Sort,
+	// }
+	if err := ctx.ShouldBindQuery(&query); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "Error in binding query get user",
+			"Error":   err,
+		})
 	}
-	result, err := h.RepositoryGetOrder(filter, page)
-	data, _ := h.RepositoryCountOrder(filter)
+	result, err := h.RepositoryGetOrder(&query)
+	data, _ := h.RepositoryCountOrder(&query)
 	if err != nil {
 		log.Print(err)
 		ctx.JSON(http.StatusInternalServerError, err)
@@ -57,12 +63,12 @@ func (h *HandlerOrder) GetOrder(ctx *gin.Context) {
 }
 
 func (h *HandlerOrder) GetOrderOnDetail(ctx *gin.Context) {
-	ID, _ := strconv.Atoi(ctx.Param("order_id"))
-	page, _ := strconv.Atoi(ctx.Query("page"))
-	if page == 0 {
+	var query models.QueryParamsOrder
+	var page int
+	if query.Page == 0 {
 		page = 1
 	}
-	result, err := h.RepositoryGetOrderDetail(ID, page)
+	result, err := h.RepositoryGetOrderDetail(&query)
 	if err != nil {
 		log.Print(err)
 		ctx.JSON(http.StatusInternalServerError, err)
@@ -83,6 +89,69 @@ func (h *HandlerOrder) GetOrderOnDetail(ctx *gin.Context) {
 }
 
 func (h *HandlerOrder) CreateOrder(ctx *gin.Context) {
+	var newOrder models.OrderModel
+	var orderId string
+	if err := ctx.ShouldBind(&newOrder); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "Error in binding body order",
+			"error":   err.Error(),
+		})
+		return
+	}
+	if _, err := govalidator.ValidateStruct(&newOrder); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "Error in Validator",
+			"Error":   err.Error(),
+		})
+		return
+	}
+	tx, errTx := h.Beginx()
+	if errTx != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Error in tx",
+			"Error":   errTx.Error(),
+		})
+		return
+	}
+	defer tx.Rollback()
+	result, err := h.RepositoryCreateOrder(&newOrder, tx)
+	for result.Next() {
+		var Id string
+		err = result.Scan(&Id)
+		if Id != "" {
+			log.Println(Id)
+			orderId = Id
+			break
+		}
+	}
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Error in Creating Order",
+			"Error":   err.Error(),
+			// "Promo":   newOrder.Promo,
+			// "Id":      orderId,
+		})
+		return
+	}
+	result.Rows.Close()
+	if _, errCreateOrderProduct := h.RepositoryCreateOrderProduct(&newOrder, tx, orderId); errCreateOrderProduct != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Error in Creating Order Product",
+			"Error":   errCreateOrderProduct.Error(),
+		})
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Error in Comitting Order",
+			"Error":   err.Error(),
+		})
+		return
+	}
+	ctx.JSON(http.StatusCreated, gin.H{
+		"message": "Successfully Create Order",
+		"Id":      orderId,
+	})
 }
 
 func (h *HandlerOrder) UpdateOrder(ctx *gin.Context) {

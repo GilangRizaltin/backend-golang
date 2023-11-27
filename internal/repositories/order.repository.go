@@ -19,7 +19,7 @@ func InitializeOrderRepository(db *sqlx.DB) *OrderRepository {
 	return &OrderRepository{db}
 }
 
-func (r *OrderRepository) RepositoryGetOrder(filter []string, page int) ([]models.OrderModel, error) {
+func (r *OrderRepository) RepositoryGetOrder(body *models.QueryParamsOrder) ([]models.OrderModel, error) {
 	data := []models.OrderModel{}
 	query := `
 	select o.id as "No",
@@ -41,30 +41,31 @@ func (r *OrderRepository) RepositoryGetOrder(filter []string, page int) ([]model
     join serve s on o.serve_id = s.id 
     join payment_type py on o.payment_type = py.id
 	`
-	if filter[0] != "" {
-		query += ` where o.status = '` + filter[0] + `'`
+	values := []any{}
+	if body.Status != "" {
+		query += ` where o.status = $'` + fmt.Sprint(len(values)+1)
+		values = append(values, body.Status)
 	}
-	if filter[1] != "" {
+	if body.Sort != "" {
 		query += ` order by o.created_at`
-		if filter[1] == "Newest" {
+		if body.Sort == "Newest" {
 			query += ` desc`
 		}
-		if filter[1] == "Oldest" {
+		if body.Sort == "Oldest" {
 			query += ` asc`
 		}
 	}
-	query += " LIMIT 6 OFFSET " + strconv.Itoa((page-1)*3)
+	query += " LIMIT 6 OFFSET " + strconv.Itoa((body.Page-1)*3)
 	// fmt.Println(query)
-	err := r.Select(&data, query)
+	err := r.Select(&data, query, values...)
 	if err != nil {
 		return nil, err
 	}
 	return data, nil
 }
 
-func (r *OrderRepository) RepositoryGetOrderDetail(Id, page int) ([]models.OrderDetailModel, error) {
+func (r *OrderRepository) RepositoryGetOrderDetail(body *models.QueryParamsOrder) ([]models.OrderDetailModel, error) {
 	data := []models.OrderDetailModel{}
-	ID := strconv.Itoa(Id)
 	query := `select
     o.id as "No Order",
     p.product_name as "Product_name",
@@ -83,9 +84,9 @@ func (r *OrderRepository) RepositoryGetOrderDetail(Id, page int) ([]models.Order
     join
     sizes s ON op.size_id = s.id
     where
-    op.order_id = ` + ID
+    op.order_id = $1`
 	// fmt.Println(query)
-	err := r.Select(&data, query)
+	err := r.Select(&data, query, body.Order_id)
 	if err != nil {
 		return nil, err
 	}
@@ -168,9 +169,9 @@ func (r *OrderRepository) RepositoryCreateOrder(bodyOrder *models.OrderModel, cl
         INSERT INTO orders(user_id, subtotal, promo_id, percent_discount, flat_discount, serve_id, fee, tax, total_transactions, payment_type, status)
         VALUES (
             (SELECT id FROM users WHERE user_name = :User), :Subtotal, 
-            (SELECT id FROM promos WHERE id = 1), 
-            (SELECT flat_amount FROM promos WHERE id = 1),
-            (SELECT percent_amount FROM promos WHERE id = 1),
+            (SELECT id FROM promos WHERE promo_code = :Promo), 
+            (SELECT flat_amount FROM promos WHERE promo_code = :Promo),
+            (SELECT percent_amount FROM promos WHERE promo_code = :Promo),
             (SELECT id FROM serve WHERE serve_type = :Serve),
             (SELECT fee FROM serve WHERE serve_type = :Serve),
             0.1,
@@ -209,9 +210,9 @@ func (r *OrderRepository) RepositoryCreateOrderProduct(bodyOrder *models.OrderMo
 		filterBody[fmt.Sprintf("Size%d", j)] = bodyOrder.Product[i].Size
 		//
 		filteredBody = append(filteredBody, fmt.Sprintf(`:Quantity%d`, j))
-		filterBody[fmt.Sprintf("quantity%d", j)] = bodyOrder.Product[i].Quantity
+		filterBody[fmt.Sprintf("Quantity%d", j)] = bodyOrder.Product[i].Quantity
 		//
-		filteredBody = append(filteredBody, fmt.Sprintf(`:Price%d)`, j))
+		filteredBody = append(filteredBody, fmt.Sprintf(`:Price%d`, j))
 		filterBody[fmt.Sprintf("Price%d", j)] = bodyOrder.Product[i].Price
 		//
 		filteredBody = append(filteredBody, fmt.Sprintf(`:Subtotal_product%d)`, j))
@@ -221,8 +222,10 @@ func (r *OrderRepository) RepositoryCreateOrderProduct(bodyOrder *models.OrderMo
 	if len(filteredBody) > 0 {
 		queryOrder += strings.Join(filteredBody, ", ")
 	}
-	rows, err := client.NamedQuery(queryOrder, bodyOrder)
+	// fmt.Println(queryOrder)
+	rows, err := client.NamedQuery(queryOrder, filterBody)
 	if err != nil {
+		// fmt.Println(err)
 		return nil, err
 	}
 	return rows, nil
@@ -300,17 +303,21 @@ func (r *OrderRepository) RepositoryDeleteProduct(ID int) (sql.Result, error) {
 	return result, err
 }
 
-func (r *OrderRepository) RepositoryCountOrder(filter []string) ([]int, error) {
+func (r *OrderRepository) RepositoryCountOrder(body *models.QueryParamsOrder) ([]int, error) {
 	var total_data = []int{}
 	query := `
 		SELECT
 			COUNT(*) AS "Total_order"
 		FROM
 			orders o `
-	if filter[0] != "" {
-		query += ` where o.status = '` + filter[0] + `'`
+	var values string
+	if body.Status != "" {
+		values = body.Status
 	}
-	err := r.Select(&total_data, query)
+	if body.Status != "" {
+		query += ` where o.status = $1`
+	}
+	err := r.Select(&total_data, query, values)
 	if err != nil {
 		log.Fatalln(err)
 		return nil, err
