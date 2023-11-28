@@ -14,4 +14,5 @@ func RouterAuth(g *gin.Engine, db *sqlx.DB) {
 	handler := handlers.InitializeAuthHandler(repository)
 	route.POST("/register", handler.Register)
 	route.POST("/login", handler.Login)
+	route.DELETE("", handler.Logout)
 }

@@ -45,10 +45,20 @@ func (r *AuthRepository) RepositorySelectPrivateData(body *models.AuthLogin) ([]
 	return data, nil
 }
 
-func (r *UserRepository) RepositoryForgetPassword() {
+func (r *AuthRepository) RepositoryForgetPassword() {
 
 }
 
-func (r *UserRepository) RepositoryResetPassword() {
+func (r *AuthRepository) RepositoryResetPassword() {
 
+}
+
+func (r *AuthRepository) RepositoryLogout(token string) error {
+	query := `insert int jwt (jwt_code) values ($1)`
+	values := []any{token}
+	_, err := r.Exec(query, values...)
+	if err != nil {
+		return err
+	}
+	return nil
 }

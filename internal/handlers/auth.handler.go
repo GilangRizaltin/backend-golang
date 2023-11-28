@@ -128,3 +128,18 @@ func (h *HandlerAuth) Login(ctx *gin.Context) {
 		},
 	})
 }
+
+func (h *HandlerAuth) Logout(ctx *gin.Context) {
+	bearerToken := ctx.GetHeader("Authorization")
+	token := strings.Replace(bearerToken, "Bearer ", "", -1)
+	if err := h.RepositoryLogout(token); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Error in logout",
+			"err":     err.Error(),
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Successfully Logout",
+	})
+}
