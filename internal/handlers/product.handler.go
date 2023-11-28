@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"Backend_Golang/internal/helpers"
 	"Backend_Golang/internal/models"
 	"Backend_Golang/internal/repositories"
+	"fmt"
 	"log"
 	"math"
 	"net/http"
@@ -118,11 +120,6 @@ func (h *HandlerProduct) CreateProduct(ctx *gin.Context) {
 		})
 		return
 	}
-	// if newProduct.Category == "" || newProduct.Product_name == "" || newProduct.Description == "" || newProduct.Price_default == 0 {
-	// 	ctx.JSON(http.StatusBadRequest, gin.H{
-	// 		"message": "Please fullfill all data"})
-	// 	return
-	// }
 	if _, err := govalidator.ValidateStruct(&newProduct); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"message": "Error in Validator",
@@ -130,7 +127,50 @@ func (h *HandlerProduct) CreateProduct(ctx *gin.Context) {
 		})
 		return
 	}
-	if err := h.RepositoryCreateProduct(&newProduct); err != nil {
+	//cloud upload
+	cld, errCloud := helpers.InitCloudinary()
+	if errCloud != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Error in initialize cloudinary",
+			"error":   errCloud,
+		})
+		return
+	}
+	formFiles, _ := ctx.MultipartForm()
+	// if err != nil {
+	// 	ctx.JSON(http.StatusInternalServerError, gin.H{
+	// 		"message": "Error in multipart form",
+	// 		"error":   err,
+	// 	})
+	// 	return
+	// }
+	var dataUrls []string
+	if formFiles != nil {
+		files := formFiles.File["Product_photo"]
+		for idx, formFile := range files {
+			file, err := formFile.Open()
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Error opening file",
+					"error":   err.Error(),
+				})
+				return
+			}
+			defer file.Close()
+			publicID := fmt.Sprintf("%s %s_%s-%d", "Products", newProduct.Product_name, "Product_photo", idx+1)
+			folder := ""
+			res, err := cld.Uploader(ctx, file, publicID, folder)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Error uploading file to Cloudinary",
+					"error":   err.Error(),
+				})
+				return
+			}
+			dataUrls = append(dataUrls, res.SecureURL)
+		}
+	}
+	if err := h.RepositoryCreateProduct(&newProduct, dataUrls); err != nil {
 		if strings.Contains(err.Error(), "unique_product_name") {
 			ctx.JSON(http.StatusBadRequest, gin.H{
 				"message": "Product name already used",
