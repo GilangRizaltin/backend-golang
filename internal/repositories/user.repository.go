@@ -90,31 +90,45 @@ func (r *UserRepository) RepositoryGetUserProfile(ID string) ([]models.UserModel
 	return data, nil
 }
 
-func (r *UserRepository) RepositoryRegisterUser(body *models.UserModel) (*sqlx.Rows, error) {
-	query := `
-	insert into users(full_name, email, user_type, password_user) VALUES (:Full_name, :Email, 'Normal User', :Password) returning id, full_name
-    `
-	result, err := r.NamedQuery(query, body)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
-}
+// func (r *UserRepository) RepositoryRegisterUser(body *models.UserModel) (*sqlx.Rows, error) {
+// 	query := `
+// 	insert into users(full_name, email, user_type, password_user) VALUES (:Full_name, :Email, 'Normal User', :Password) returning id, full_name
+//     `
+// 	result, err := r.NamedQuery(query, body)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return result, nil
+// }
 
-func (r *UserRepository) RepositoryAddUser(body *models.UserModel) error {
+func (r *UserRepository) RepositoryAddUser(body *models.UserModel, hashedPassword, url string) error {
 	query := `
-	insert into users(user_name, full_name, address, phone, email, user_type, password_user) VALUES (:User_name, :Full_name, :Address, :Phone,  :Email, :User_type, :Password) returning id, full_name
+	insert into users(user_photo_profile, user_name, full_name, address, phone, email, user_type, password_user) VALUES 
+	(:Photo_profile, :User_name, :Full_name, :Address,  :Phone, :Email, :User_type, :hashedPassword) returning id, full_name
     `
-	_, err := r.NamedExec(query, body)
+	params := make(map[string]interface{})
+	params["Photo_profile"] = url
+	params["User_name"] = body.User_name
+	params["Full_name"] = body.Full_name
+	params["Address"] = body.Address
+	params["Phone"] = body.Phone
+	params["Email"] = body.Email
+	params["User_type"] = body.User_type
+	params["hashedPassword"] = hashedPassword
+	_, err := r.NamedExec(query, params)
 	return err
 }
 
-func (r *UserRepository) RepositoryUpdateUser(productID int, body *models.UserModel) (sql.Result, error) {
+func (r *UserRepository) RepositoryUpdateUser(productID int, body *models.UserModel, url string) (sql.Result, error) {
 	var conditional []string
 	query := `
         UPDATE users
         SET `
 	params := make(map[string]interface{})
+	if url != "" {
+		conditional = append(conditional, "user_photo_profile = :Url")
+		params["Url"] = url
+	}
 	if body.User_name != nil {
 		conditional = append(conditional, "user_name = :User_name")
 		params["User_name"] = body.User_name

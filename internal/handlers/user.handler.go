@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"Backend_Golang/internal/helpers"
 	"Backend_Golang/internal/models"
 	"Backend_Golang/internal/repositories"
+	"Backend_Golang/pkg"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -89,42 +92,72 @@ func (h *HandlerUser) GetUserProfile(ctx *gin.Context) {
 	})
 }
 
-func (h *HandlerUser) RegisterUser(ctx *gin.Context) {
-	var body models.UserModel
-	if err := ctx.ShouldBind(&body); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error in binding body register user",
-			"error":   err,
-		})
-		return
-	}
-	if body.Full_name == nil || body.Email == "" || body.Password == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Please fill all data",
-		})
-		return
-	}
-	res, err := h.RepositoryRegisterUser(&body)
-	if err != nil {
-		if strings.Contains(err.Error(), "users_email_key") {
-			ctx.JSON(http.StatusBadRequest, gin.H{
-				"message": "Email already used",
-			})
-			return
-		}
-		log.Fatalln(err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	ctx.JSON(http.StatusCreated, gin.H{
-		"message": "User created successfully",
-		"User":    body.Full_name,
-		"data":    res,
-	})
-}
+// func (h *HandlerUser) RegisterUser(ctx *gin.Context) {
+// 	var body models.UserModel
+// 	if err := ctx.ShouldBind(&body); err != nil {
+// 		ctx.JSON(http.StatusBadRequest, gin.H{
+// 			"message": "Error in binding body register user",
+// 			"error":   err,
+// 		})
+// 		return
+// 	}
+// 	if body.Full_name == nil || body.Email == "" || body.Password == "" {
+// 		ctx.JSON(http.StatusBadRequest, gin.H{
+// 			"message": "Please fill all data",
+// 		})
+// 		return
+// 	}
+// 	res, err := h.RepositoryRegisterUser(&body)
+// 	if err != nil {
+// 		if strings.Contains(err.Error(), "users_email_key") {
+// 			ctx.JSON(http.StatusBadRequest, gin.H{
+// 				"message": "Email already used",
+// 			})
+// 			return
+// 		}
+// 		log.Fatalln(err)
+// 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		return
+// 	}
+// 	ctx.JSON(http.StatusCreated, gin.H{
+// 		"message": "User created successfully",
+// 		"User":    body.Full_name,
+// 		"data":    res,
+// 	})
+// }
 
 func (h *HandlerUser) AddUser(ctx *gin.Context) {
 	var body models.UserModel
+	cld, errCloud := helpers.InitCloudinary()
+	if errCloud != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Error in initialize clodinary",
+			"error":   errCloud,
+		})
+		return
+	}
+	formFile, _ := ctx.FormFile("Photo_profile")
+	var dataUrl string
+	if formFile != nil {
+		file, err := formFile.Open()
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"message": err.Error(),
+			})
+			return
+		}
+		defer file.Close()
+		publicId := fmt.Sprintf("%s_%s-%s", "users", "Photo_profile", ctx.Param("id"))
+		folder := ""
+		res, err := cld.Uploader(ctx, file, publicId, folder)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"message": err.Error(),
+			})
+			return
+		}
+		dataUrl = res.SecureURL
+	}
 	if err := ctx.ShouldBind(&body); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"message": "Error in binding body add user",
@@ -132,7 +165,29 @@ func (h *HandlerUser) AddUser(ctx *gin.Context) {
 		})
 		return
 	}
-	err := h.RepositoryAddUser(&body)
+	if _, err := govalidator.ValidateStruct(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "Error in Validator",
+			"Error":   err.Error(),
+		})
+		return
+	}
+	hs := pkg.HashConfig{
+		Time:    3,
+		Memory:  64 * 1024,
+		Threads: 2,
+		KeyLen:  32,
+		SaltLen: 16,
+	}
+	hashedPassword, errHash := hs.GenHashedPassword(body.Password)
+	if errHash != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Error in hashing password",
+			"Error":   errHash.Error(),
+		})
+		return
+	}
+	err := h.RepositoryAddUser(&body, hashedPassword, dataUrl)
 	if err != nil {
 		if strings.Contains(err.Error(), "users_email_key") {
 			ctx.JSON(http.StatusBadRequest, gin.H{
@@ -164,14 +219,44 @@ func (h *HandlerUser) AddUser(ctx *gin.Context) {
 func (h *HandlerUser) EditUserProfile(ctx *gin.Context) {
 	var body models.UserModel
 	ID, _ := strconv.Atoi(ctx.Param("id"))
-	if err := ctx.ShouldBind(&body); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error in binding body update user",
+	cld, err := helpers.InitCloudinary()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Error in initialize clodinary",
 			"error":   err,
 		})
 		return
 	}
-	result, err := h.RepositoryUpdateUser(ID, &body)
+	formFile, _ := ctx.FormFile("Photo_profile")
+	var dataUrl string
+	if formFile != nil {
+		file, err := formFile.Open()
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"message": err.Error(),
+			})
+			return
+		}
+		defer file.Close()
+		publicId := fmt.Sprintf("%s_%s-%s", "users", "Photo_profile", ctx.Param("id"))
+		folder := ""
+		res, err := cld.Uploader(ctx, file, publicId, folder)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"message": err.Error(),
+			})
+			return
+		}
+		dataUrl = res.SecureURL
+	}
+	if err := ctx.ShouldBind(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "Error in binding body update user",
+			"error":   err.Error(),
+		})
+		return
+	}
+	result, err := h.RepositoryUpdateUser(ID, &body, dataUrl)
 	rowsAffected, _ := result.RowsAffected()
 	if err != nil {
 		log.Println(err)

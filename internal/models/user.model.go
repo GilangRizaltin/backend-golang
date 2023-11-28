@@ -1,15 +1,15 @@
 package models
 
 type UserModel struct {
-	Id            int         `db:"No"`
-	Photo_profile interface{} `db:"Photo_profile" form:"Photo_profile" json:"Photo_profile" valid:"-"`
-	User_name     *string     `db:"User_name" form:"User_name" json:"User_name" valid:"-"`
+	Id            int         `db:"No" valid:"-"`
+	Photo_profile interface{} `db:"Photo_profile" form:"_" json:"Photo_profile" valid:"-"`
+	User_name     *string     `db:"User_name" form:"User_name" json:"User_name" valid:"alphanum,optional"`
 	Full_name     *string     `db:"Full_name" form:"Full_name" json:"Full_name" valid:"-"`
-	Phone         *string     `db:"Phone" form:"Phone" json:"Phone" valid:"-"`
-	Address       *string     `db:"Address" form:"Address" json:"Address" valid:"-"`
+	Phone         *string     `db:"Phone" form:"Phone" json:"Phone" valid:"optional"`
+	Address       *string     `db:"Address" form:"Address" json:"Address" valid:"optional"`
 	Email         string      `db:"Email" form:"Email" json:"Email" valid:"numeric"`
 	Password      string      `db:"Password" form:"Password" json:"Password" valid:"-"`
-	User_type     string      `db:"User_type" form:"User_type" json:"User_type" valid:"-"`
+	User_type     string      `db:"User_type" form:"User_type" json:"User_type" valid:"in(Admin|Normal User)optional"`
 	Otp           *int        `db:"Otp" form:"Otp" json:"Otp" valid:"-"`
 	// Created_at    *time.Time  `db:"created_at"`
 }
