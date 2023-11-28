@@ -36,3 +36,14 @@ type UpdateProduct struct {
 	Price_default   int         `db:"Price" form:"Price" json:"Price" valid:"numeric, optional"`
 	Description     string      `db:"Description" form:"Description" json:"Description" valid:"optional"`
 }
+
+type StatisticProduct struct {
+	OrderDate     *time.Time  `db:"OrderDate" json:"OrderDate"`
+	TotalQuantity interface{} `db:"TotalQuantity" json:"TotalQuantity"`
+}
+
+type PopularProduct struct {
+	Product_name  string      `db:"Product" form:"Product" json:"Product" valid:"optional"`
+	TotalQuantity interface{} `db:"Total_Quantity" json:"Total_Quantity"`
+	Total_Income  interface{} `db:"Total_Income" json:"Total_Income"`
+}

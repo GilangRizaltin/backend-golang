@@ -14,6 +14,8 @@ func RouterProduct(g *gin.Engine, db *sqlx.DB) {
 	repository := repositories.InitializeRepository(db)
 	handler := handlers.InitializeHandler(repository)
 	route.GET("", handler.GetProduct)
+	route.GET("/statistic", handler.GetStatistic)
+	route.GET("/popular", handler.GetPopular)
 	route.GET("/:id", middlewares.JWTIsLogin(), handler.GetProductDetail)
 	route.POST("", middlewares.JWTGate("Admin"), handler.CreateProduct)
 	route.PATCH("/:id", middlewares.JWTGate("Admin"), handler.UpdateProduct)

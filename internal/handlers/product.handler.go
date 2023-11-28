@@ -240,6 +240,40 @@ func (h *HandlerProduct) DeleteProduct(ctx *gin.Context) {
 	})
 }
 
+func (h *HandlerProduct) GetStatistic(ctx *gin.Context) {
+	dateStart := ctx.Query("date-start")
+	dateEnd := ctx.Query("date-end")
+	result, err := h.RepositoryStatisticProduct(dateStart, dateEnd)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Error in popular products",
+			"ERROR":   err.Error(),
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Get products selled statistic success",
+		"data":    result,
+	})
+}
+
+func (h *HandlerProduct) GetPopular(ctx *gin.Context) {
+	dateStart := ctx.Query("date-start")
+	dateEnd := ctx.Query("date-end")
+	result, err := h.RepositoryPopularProduct(dateStart, dateEnd)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Error in popular products",
+			"ERROR":   err.Error(),
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Get popular products success",
+		"data":    result,
+	})
+}
+
 func pagination(url, pages, endpoint string, totalData, page int) (string, string, int) {
 	var nextPage string
 	var prevPage string

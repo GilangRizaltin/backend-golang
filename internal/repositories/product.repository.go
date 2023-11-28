@@ -216,3 +216,61 @@ func (r *ProductRepository) RepositoryCountProduct(body *models.QueryParamsProdu
 	}
 	return total_data, nil
 }
+
+func (r *ProductRepository) RepositoryStatisticProduct(dateStart, dateEnd string) ([]models.StatisticProduct, error) {
+	data := []models.StatisticProduct{}
+	query := `SELECT 
+                dates::date AS "OrderDate",
+                SUM(op.quantity) AS "TotalQuantity"
+              FROM 
+                generate_series($1::timestamp, $2::timestamp, interval '1 day') dates
+              LEFT JOIN 
+                orders_products AS op
+              ON 
+                DATE(op.created_at) = dates::date
+              GROUP BY 
+                dates::date
+              ORDER BY 
+                dates::date`
+	values := []any{
+		dateStart, dateEnd,
+	}
+	err := r.Select(&data, query, values...)
+	// fmt.Println(query)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func (r *ProductRepository) RepositoryPopularProduct(dateStart, dateEnd string) ([]models.PopularProduct, error) {
+	data := []models.PopularProduct{}
+	query := `SELECT
+    p.product_name as "Product",
+    SUM(op.quantity) as "Total_Quantity",
+    SUM(op.subtotal) as "Total_Income"
+FROM
+    orders_products AS op
+JOIN
+    products AS p
+ON
+    op.product_id = p.id
+WHERE
+	op.created_at > $1::timestamp
+AND 
+	op.created_at < $2::timestamp
+GROUP BY
+    p.product_name
+HAVING
+    SUM(op.quantity) IS NOT NULL
+ORDER BY
+    "Product" ASC`
+	values := []any{
+		dateStart, dateEnd,
+	}
+	err := r.Select(&data, query, values...)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
