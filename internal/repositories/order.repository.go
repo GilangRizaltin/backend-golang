@@ -43,7 +43,7 @@ func (r *OrderRepository) RepositoryGetOrder(body *models.QueryParamsOrder) ([]m
 	`
 	values := []any{}
 	if body.Status != "" {
-		query += ` where o.status = $'` + fmt.Sprint(len(values)+1)
+		query += ` where o.status = $` + fmt.Sprint(len(values)+1)
 		values = append(values, body.Status)
 	}
 	if body.Sort != "" {
@@ -56,15 +56,42 @@ func (r *OrderRepository) RepositoryGetOrder(body *models.QueryParamsOrder) ([]m
 		}
 	}
 	query += " LIMIT 6 OFFSET " + strconv.Itoa((body.Page-1)*3)
-	// fmt.Println(query)
+	fmt.Println(query)
 	err := r.Select(&data, query, values...)
 	if err != nil {
 		return nil, err
 	}
+	// queryOrderProduct := `select
+	// op.id as "No Order",
+	// p.product_name as "Product_name",
+	// op.hot_or_not as "Hot_or_not",
+	// s.size_name as "Size",
+	// op.price as "Price",
+	// op.quantity as "Quantity"
+	// from
+	// orders_products op
+	// inner join
+	// orders o ON op.order_id = o.id
+	// inner join
+	// users u ON o.user_id = u.id
+	// join
+	// products p ON op.product_id = p.id
+	// join
+	// sizes s ON op.size_id = s.id
+	// where
+	// o.id = $1`
+	// for _, data := range data {
+	// 	order_id := data.Id
+	// 	err := r.Select(&data.Product, queryOrderProduct, order_id)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	return data, nil
+	// }
 	return data, nil
 }
 
-func (r *OrderRepository) RepositoryGetOrderDetail(body *models.QueryParamsOrder) ([]models.OrderDetailModel, error) {
+func (r *OrderRepository) RepositoryGetOrderDetail(order_id int) ([]models.OrderDetailModel, error) {
 	data := []models.OrderDetailModel{}
 	query := `select
     o.id as "No Order",
@@ -86,83 +113,26 @@ func (r *OrderRepository) RepositoryGetOrderDetail(body *models.QueryParamsOrder
     where
     op.order_id = $1`
 	// fmt.Println(query)
-	err := r.Select(&data, query, body.Order_id)
+	err := r.Select(&data, query, order_id)
 	if err != nil {
 		return nil, err
 	}
 	return data, nil
 }
 
-// func (r *OrderRepository) RepositoryCreateTransaction(bodyOrder *models.OrderModel, bodyOrderProducts *models.OrderDetailModel) error {
-// 	tx, err := r.Beginx()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer func() {
-// 		if err != nil {
-// 			tx.Rollback()
-// 		}
-// 	}()
-// 	queryOrder := `INSERT INTO orders(user_id, subtotal, promo_id, percent_discount, flat_discount, serve_id, fee, tax, total_transactions, payment_type, status)
-// 	VALUES (
-// 		(SELECT id FROM users WHERE user_name = :User), :Subtotal,
-// 		(select id from promos where id = 1),
-// 		(select flat_amount from promos where id = 1),
-// 		(select percent_amount from promos where id = 1),
-// 		(SELECT id FROM serve WHERE serve_type = :Serve),
-// 		(SELECT fee FROM serve WHERE serve_type = :Serve),
-// 		0.1,
-// 		:Total_transaction,
-// 		(SELECT id FROM payment_type WHERE payment_name = :Payment_type),
-// 		'On progress'
-// 	) returning id`
-// 	_, err = tx.NamedQuery(queryOrder, bodyOrder)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	// queryOrderProduct := `INSERT INTO orders_products (order_id, product_id,hot_or_not, size_id, price, quantity, subtotal)
-// 	// VALUES (
-// 	// 	$1,
-// 	// 	(SELECT id FROM products WHERE product_name = $2),
-// 	// 	$3,
-// 	// 	(SELECT id FROM sizes WHERE size_name = $4),
-// 	// 	(
-// 	// 		(SELECT price_default FROM products WHERE product_name = $2) +
-// 	// 		(SELECT additional_fee FROM sizes WHERE size_name = $4)
-// 	// 	),
-// 	// 	$5,
-// 	// 	(
-// 	// 		(
-// 	// 			(SELECT price_default FROM products WHERE product_name = $2) +
-// 	// 			(SELECT additional_fee FROM sizes WHERE size_name = $4)
-// 	// 		) * 3
-// 	// 	)
-// 	// )`
-// 	queryOrderProduct := `INSERT INTO orders_products (order_id, product_id,hot_or_not, size_id, price, quantity, subtotal)
-// 	VALUES (
-// 		55,
-// 		2,
-// 		true,
-// 		4,
-// 		20000,
-// 		5,
-// 		100000
-// 	)`
-// 	// fmt.Println(queryOrderProduct)
-// 	_, err = tx.Exec(queryOrderProduct) // bodyOrder.Id,
-// 	// bodyOrderProducts.Product_name,
-// 	// bodyOrderProducts.Hot_or_not,
-// 	// bodyOrderProducts.Size,
-// 	// bodyOrderProducts.Quantity
-// 	if err != nil {
-// 		return err
-// 	}
-// 	err = tx.Commit()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
+func (r *OrderRepository) RepositoryGetStatisticByStatus() ([]models.OrderDataStatus, error) {
+	data := []models.OrderDataStatus{}
+	query := `SELECT o.status AS "Status", COUNT(*) AS "Total" FROM orders o GROUP BY o.status`
+	err := r.Select(&data, query)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func (r *OrderRepository) RepositoryGetOrderList() {
+
+}
 
 func (r *OrderRepository) RepositoryCreateOrder(bodyOrder *models.OrderModel, client *sqlx.Tx) (*sqlx.Rows, error) {
 	queryOrder := `

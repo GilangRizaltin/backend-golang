@@ -32,8 +32,13 @@ type OrderDetailModel struct {
 }
 
 type QueryParamsOrder struct {
-	Status   string `form:"id" json:"id" valid:"in(On progress|Pending|Done|Cancelled),optional"`
-	Sort     string `form:"product" json:"search" valid:"in(Newest|Oldest),optional"`
-	Order_id int    `form:"max_price" json:"max_price" valid:"numeric,optional"`
-	Page     int    `form:"min_price" json:"min_price" valid:"numeric,optional"`
+	Status   string `form:"status" json:"status" valid:"in(On progress|Pending|Done|Cancelled),optional"`
+	Sort     string `form:"sort" json:"sort" valid:"in(Newest|Oldest),optional"`
+	Order_id int    `form:"order_id" json:"order_id" valid:"numeric,optional"`
+	Page     int    `form:"page" json:"page" valid:"numeric,optional"`
+}
+
+type OrderDataStatus struct {
+	Status string `db:"Status" form:"Status" json:"Status" valid:"-"`
+	Total  int    `db:"Total" form:"Total" json:"Total" valid:"-"`
 }

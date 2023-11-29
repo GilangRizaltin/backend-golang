@@ -63,12 +63,13 @@ func (h *HandlerOrder) GetOrder(ctx *gin.Context) {
 }
 
 func (h *HandlerOrder) GetOrderOnDetail(ctx *gin.Context) {
-	var query models.QueryParamsOrder
-	var page int
-	if query.Page == 0 {
-		page = 1
+	order_id := ctx.Param("order_id")
+	id, err := strconv.Atoi(order_id)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, err.Error())
+		return
 	}
-	result, err := h.RepositoryGetOrderDetail(&query)
+	result, err := h.RepositoryGetOrderDetail(id)
 	if err != nil {
 		log.Print(err)
 		ctx.JSON(http.StatusInternalServerError, err)
@@ -84,7 +85,29 @@ func (h *HandlerOrder) GetOrderOnDetail(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{
 		"message": "Get all promo success",
 		"data":    result,
-		"page":    page,
+	})
+}
+
+func (h *HandlerOrder) GetOrderStatisticByStatus(ctx *gin.Context) {
+	// status := ctx.Query("status")
+	// if valid := govalidator.IsIn(status, "On progress", "Done", "Cancelled", "Pending"); !valid {
+	// 	ctx.JSON(http.StatusInternalServerError, gin.H{
+	// 		"message": "Mismatch input status",
+	// 		"Status":  status,
+	// 	})
+	// 	return
+	// }
+	result, err := h.RepositoryGetStatisticByStatus()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Data Not Found",
+			"Error":   err.Error(),
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Successfully get order statistic by status",
+		"data":    result,
 	})
 }
 
