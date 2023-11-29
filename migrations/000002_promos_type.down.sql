@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS "golang_db".promos_type;

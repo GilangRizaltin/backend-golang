@@ -1,0 +1,20 @@
+CREATE TABLE "golang_db".users (
+	id serial4 NOT NULL,
+	user_photo_profile text NULL,
+	user_name varchar(100) NULL,
+	full_name varchar(255) NOT NULL,
+	phone varchar(50) NULL,
+	address varchar(255) NULL,
+	email varchar(150) NOT NULL,
+	user_type varchar(25) NULL,
+	created_at timestamp NOT NULL DEFAULT now(),
+	update_at timestamp NULL,
+	password_user varchar(100) NOT NULL,
+	activated bool NOT NULL DEFAULT false,
+	otp int4 NULL,
+	CONSTRAINT pk_users PRIMARY KEY (id),
+	CONSTRAINT users_email_key UNIQUE (email),
+	CONSTRAINT users_phone_key UNIQUE (phone),
+	CONSTRAINT users_user_name_key UNIQUE (user_name),
+	CONSTRAINT users_user_type_check CHECK (((user_type)::text = ANY ((ARRAY['Normal User'::character varying, 'Admin'::character varying])::text[])))
+);
