@@ -16,8 +16,8 @@ func RouterProduct(g *gin.Engine, db *sqlx.DB) {
 	route.GET("", handler.GetProduct)
 	route.GET("/statistic", handler.GetStatistic)
 	route.GET("/popular", handler.GetPopular)
-	route.GET("/:id", middlewares.JWTIsLogin(), handler.GetProductDetail)
-	route.POST("", middlewares.JWTGate("Admin"), handler.CreateProduct)
-	route.PATCH("/:id", middlewares.JWTGate("Admin"), handler.UpdateProduct)
-	route.DELETE("/:id", middlewares.JWTGate("Admin"), handler.DeleteProduct)
+	route.GET("/:id", middlewares.JWTGate(db, "Admin", "Normal User"), handler.GetProductDetail)
+	route.POST("", middlewares.JWTGate(db, "Admin"), handler.CreateProduct)
+	route.PATCH("/:id", middlewares.JWTGate(db, "Admin"), handler.UpdateProduct)
+	route.DELETE("/:id", middlewares.JWTGate(db, "Admin"), handler.DeleteProduct)
 }

@@ -189,10 +189,57 @@ func (h *HandlerProduct) UpdateProduct(ctx *gin.Context) {
 	var updateProduct models.UpdateProduct
 	ID, _ := strconv.Atoi(ctx.Param("id"))
 	if err := ctx.ShouldBind(&updateProduct); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "Error in binding update body",
+			"error":   err.Error(),
+		})
 		return
 	}
-	result, err := h.RepositoryUpdateProduct(ID, &updateProduct)
+	if _, err := govalidator.ValidateStruct(&updateProduct); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "Error in Validator",
+			"Error":   err.Error(),
+		})
+		return
+	}
+	//cloud upload
+	cld, errCloud := helpers.InitCloudinary()
+	if errCloud != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Error in initialize cloudinary",
+			"error":   errCloud,
+		})
+		return
+	}
+	formFiles, _ := ctx.MultipartForm()
+	var dataUrls []string
+	dataIndexPhoto := updateProduct.Photo_index
+	if formFiles != nil {
+		files := formFiles.File["Product_photo"]
+		for idx, formFile := range files {
+			file, err := formFile.Open()
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Error opening file",
+					"error":   err.Error(),
+				})
+				return
+			}
+			defer file.Close()
+			publicID := fmt.Sprintf("%s %s_%s-%d", "Products", ctx.Param("id"), "Product_photo", dataIndexPhoto[idx])
+			folder := ""
+			res, err := cld.Uploader(ctx, file, publicID, folder)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Error uploading file to Cloudinary",
+					"error":   err.Error(),
+				})
+				return
+			}
+			dataUrls = append(dataUrls, res.SecureURL)
+		}
+	}
+	result, err := h.RepositoryUpdateProduct(ID, &updateProduct, dataUrls)
 	if err != nil {
 		if strings.Contains(err.Error(), "unique_product_name") {
 			ctx.JSON(http.StatusBadRequest, gin.H{
@@ -275,26 +322,6 @@ func (h *HandlerProduct) GetPopular(ctx *gin.Context) {
 }
 
 func pagination(url, pages, endpoint string, totalData, page int) (string, string, int) {
-	var nextPage string
-	var prevPage string
-	lastPage := int(math.Ceil(float64(totalData) / 6))
-	linkPage := "localhost:6121/" + endpoint + url
-	nextPage = linkPage[:len(linkPage)-1] + strconv.Itoa(page+1)
-	prevPage = linkPage[:len(linkPage)-1] + strconv.Itoa(page-1)
-	if pages == "" {
-		nextPage = linkPage + "&page=" + strconv.Itoa(page+1)
-		prevPage = linkPage + "&page=" + strconv.Itoa(page-1)
-	}
-	if page == int(lastPage) {
-		nextPage = "null"
-	}
-	if page == 1 {
-		prevPage = "null"
-	}
-	return nextPage, prevPage, lastPage
-}
-
-func metaPagination(url, pages, endpoint string, totalData, page int) (string, string, int) {
 	var nextPage string
 	var prevPage string
 	lastPage := int(math.Ceil(float64(totalData) / 6))

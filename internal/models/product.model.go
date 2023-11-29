@@ -27,14 +27,11 @@ type QueryParamsProduct struct {
 }
 
 type UpdateProduct struct {
-	Product_photo_1 interface{} `db:"Product_photo_1" form:"Product_photo_1" json:"Product_photo_1" valid:"optional"`
-	Product_photo_2 interface{} `db:"Product_photo_2" form:"Product_photo_2" json:"Product_photo_2" valid:"optional"`
-	Product_photo_3 interface{} `db:"Product_photo_3" form:"Product_photo_3" json:"Product_photo_3" valid:"optional"`
-	Product_photo_4 interface{} `db:"Product_photo_4" form:"Product_photo_4" json:"Product_photo_4" valid:"optional"`
-	Product_name    string      `db:"Product" form:"Product" json:"Product" valid:"optional"`
-	Category        string      `db:"Categories" form:"Categories" json:"Categories" valid:"in(Coffee|Non - Coffee|Food), optional"`
-	Price_default   int         `db:"Price" form:"Price" json:"Price" valid:"numeric, optional"`
-	Description     string      `db:"Description" form:"Description" json:"Description" valid:"optional"`
+	Photo_index   []int  `form:"Photo_index" json:"Photo_index" valid:"optional"`
+	Product_name  string `form:"Product" json:"Product" valid:"optional"`
+	Category      string `form:"Categories" json:"Categories" valid:"in(Coffee|Non - Coffee|Food), optional"`
+	Price_default int    `form:"Price" json:"Price" valid:"numeric, optional"`
+	Description   string `form:"Description" json:"Description" valid:"optional"`
 }
 
 type StatisticProduct struct {

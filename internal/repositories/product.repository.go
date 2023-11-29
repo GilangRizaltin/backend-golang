@@ -135,12 +135,18 @@ func (r *ProductRepository) RepositoryCreateProduct(body *models.ProductModel, d
 	return err
 }
 
-func (r *ProductRepository) RepositoryUpdateProduct(productID int, body *models.UpdateProduct) (sql.Result, error) {
+func (r *ProductRepository) RepositoryUpdateProduct(productID int, body *models.UpdateProduct, dataUrl []string) (sql.Result, error) {
 	var conditional []string
 	query := `
         UPDATE products
         SET `
 	params := make(map[string]interface{})
+	if len(body.Photo_index) > 0 {
+		for i := 0; i < len(body.Photo_index); i++ {
+			conditional = append(conditional, fmt.Sprintf("product_image_%d = :Product_Image%d", body.Photo_index[i], body.Photo_index[i]))
+			params[fmt.Sprintf("Product_Image%d", body.Photo_index[i])] = dataUrl[i]
+		}
+	}
 	if body.Product_name != "" {
 		conditional = append(conditional, "product_name = :Product_name")
 		params["Product_name"] = body.Product_name
@@ -160,6 +166,7 @@ func (r *ProductRepository) RepositoryUpdateProduct(productID int, body *models.
 		query += strings.Join(conditional, ", ") + ", "
 	}
 	params["Id"] = productID
+	fmt.Println(params)
 	query += ` update_at = NOW() WHERE id = :Id`
 	result, err := r.NamedExec(query, params)
 	// fmt.Println(query)
