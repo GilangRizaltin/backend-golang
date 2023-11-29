@@ -69,7 +69,7 @@ func (r *UserRepository) RepositoryGetUser(body *models.QueryParamsUser) ([]mode
 	return data, nil
 }
 
-func (r *UserRepository) RepositoryGetUserProfile(ID string) ([]models.UserModel, error) {
+func (r *UserRepository) RepositoryGetUserProfile(ID int) ([]models.UserModel, error) {
 	data := []models.UserModel{}
 	query := `
 	select u.id as "No",
@@ -80,6 +80,21 @@ func (r *UserRepository) RepositoryGetUserProfile(ID string) ([]models.UserModel
 	u.address as "Address",
 	u.email as "Email",
 	u.user_type as "User_type",
+	u.otp as "Otp"
+	from users u
+	where u.id = $1`
+	err := r.Select(&data, query, ID)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func (r *UserRepository) RepositorySensitiveDataUser(ID int) ([]models.UserModel, error) {
+	data := []models.UserModel{}
+	query := `
+	select 
+	u.password_user as "Password",
 	u.otp as "Otp"
 	from users u
 	where u.id = $1`
@@ -119,7 +134,7 @@ func (r *UserRepository) RepositoryAddUser(body *models.UserModel, hashedPasswor
 	return err
 }
 
-func (r *UserRepository) RepositoryUpdateUser(productID int, body *models.UserModel, url string) (sql.Result, error) {
+func (r *UserRepository) RepositoryUpdateUser(productID int, body *models.UserUpdateModel, url, hashedPassword string) (sql.Result, error) {
 	var conditional []string
 	query := `
         UPDATE users
@@ -141,13 +156,13 @@ func (r *UserRepository) RepositoryUpdateUser(productID int, body *models.UserMo
 		conditional = append(conditional, "phone = :Phone")
 		params["Phone"] = body.Phone
 	}
+	if hashedPassword != "" {
+		conditional = append(conditional, "password_user = :Password")
+		params["Password"] = hashedPassword
+	}
 	if body.Address != nil {
 		conditional = append(conditional, "address = :Address")
 		params["Address"] = body.Address
-	}
-	if body.Password != "" {
-		conditional = append(conditional, "password_user = :Password")
-		params["Password"] = body.Password
 	}
 	if body.User_type != "" {
 		conditional = append(conditional, "user_type = :User_type")
@@ -161,9 +176,19 @@ func (r *UserRepository) RepositoryUpdateUser(productID int, body *models.UserMo
 	}
 	params["Id"] = productID
 	query += ` ,update_at = NOW() WHERE id = :Id`
-	fmt.Println(query)
+	// fmt.Println(query)
 	result, err := r.NamedExec(query, params)
 	return result, err
+}
+
+func (r *UserRepository) RepositoryUpdatePasswordUser(userID int, hashedPassword string) error {
+	query := `UPDATE users SET password_user = $1 where id = $2`
+	values := []any{hashedPassword, userID}
+	_, err := r.Query(query, values)
+	if err != nil {
+		return nil
+	}
+	return nil
 }
 
 func (r *UserRepository) RepositoryDeleteUser(userID int) (sql.Result, error) {

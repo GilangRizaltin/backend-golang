@@ -60,21 +60,23 @@ func (h *HandlerUser) GetUser(ctx *gin.Context) {
 		})
 		return
 	}
-	nextPage, prevPage, lastPage := metaPagination(url, pages, "user?", data, page)
+	nextPage, prevPage, lastPage := helpers.MetaPagination(url, pages, "user?", data, page)
 	ctx.JSON(http.StatusOK, gin.H{
 		"message":    "Get all users success",
 		"data":       result,
 		"total_data": data,
-		"Page":       query.Page,
-		"nextPage":   nextPage,
-		"prevPage":   prevPage,
-		"lastPage":   lastPage,
+		"page":       query.Page,
+		"next_page":  nextPage,
+		"prev_page":  prevPage,
+		"total_page": lastPage,
 	})
 }
 
 func (h *HandlerUser) GetUserProfile(ctx *gin.Context) {
-	ID := ctx.Param("id")
-	result, err := h.RepositoryGetUserProfile(ID)
+	// ID := ctx.Param("id")
+	id, _ := helpers.GetPayload(ctx)
+	// fmt.Println(id)
+	result, err := h.RepositoryGetUserProfile(id)
 	if err != nil {
 		log.Print(err)
 		ctx.JSON(http.StatusInternalServerError, err)
@@ -128,6 +130,20 @@ func (h *HandlerUser) GetUserProfile(ctx *gin.Context) {
 
 func (h *HandlerUser) AddUser(ctx *gin.Context) {
 	var body models.UserModel
+	if err := ctx.ShouldBind(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "Error in binding body add user",
+			"error":   err,
+		})
+		return
+	}
+	if _, err := govalidator.ValidateStruct(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "Error in Validator",
+			"Error":   err.Error(),
+		})
+		return
+	}
 	cld, errCloud := helpers.InitCloudinary()
 	if errCloud != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
@@ -157,20 +173,6 @@ func (h *HandlerUser) AddUser(ctx *gin.Context) {
 			return
 		}
 		dataUrl = res.SecureURL
-	}
-	if err := ctx.ShouldBind(&body); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error in binding body add user",
-			"error":   err,
-		})
-		return
-	}
-	if _, err := govalidator.ValidateStruct(&body); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error in Validator",
-			"Error":   err.Error(),
-		})
-		return
 	}
 	hs := pkg.HashConfig{
 		Time:    3,
@@ -217,8 +219,63 @@ func (h *HandlerUser) AddUser(ctx *gin.Context) {
 }
 
 func (h *HandlerUser) EditUserProfile(ctx *gin.Context) {
-	var body models.UserModel
-	ID, _ := strconv.Atoi(ctx.Param("id"))
+	var body models.UserUpdateModel
+	ID, _ := helpers.GetPayload(ctx)
+	if err := ctx.ShouldBind(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "Error in binding body update user",
+			"error":   err.Error(),
+		})
+		return
+	}
+	if _, err := govalidator.ValidateStruct(&body); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"message": "Error in Validator Edit user",
+			"Error":   err.Error(),
+			"Body":    &body,
+		})
+		return
+	}
+	var newPassword string
+	if body.NewPassword != "" {
+		if body.LastPassword == "" {
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"message": "Please input latest password to verify",
+			})
+			return
+		}
+		result, err := h.RepositorySensitiveDataUser(ID)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"message": "Error in get password user",
+				"error":   err.Error(),
+			})
+			return
+		}
+		hs := pkg.HashConfig{
+			Time:    3,
+			Memory:  64 * 1024,
+			Threads: 2,
+			KeyLen:  32,
+			SaltLen: 16,
+		}
+		isValid, _ := hs.ComparePasswordAndHash(body.LastPassword, result[0].Password)
+		if !isValid {
+			ctx.JSON(http.StatusUnauthorized, gin.H{
+				"message": "Last password doesnt match",
+			})
+			return
+		}
+		hashedPassword, errHash := hs.GenHashedPassword(body.NewPassword)
+		if errHash != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"message": "Error in hashin password",
+				"error":   errHash.Error(),
+			})
+			return
+		}
+		newPassword = hashedPassword
+	}
 	cld, err := helpers.InitCloudinary()
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
@@ -249,25 +306,20 @@ func (h *HandlerUser) EditUserProfile(ctx *gin.Context) {
 		}
 		dataUrl = res.SecureURL
 	}
-	if err := ctx.ShouldBind(&body); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error in binding body update user",
-			"error":   err.Error(),
-		})
+	result, errUpdate := h.RepositoryUpdateUser(ID, &body, dataUrl, newPassword)
+	if errUpdate != nil {
+		// log.Println(err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": errUpdate.Error()})
 		return
 	}
-	result, err := h.RepositoryUpdateUser(ID, &body, dataUrl)
-	rowsAffected, _ := result.RowsAffected()
-	if err != nil {
-		log.Println(err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	if rowsAffected == 0 {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"message": "Users not found",
-		})
-		return
+	if result != nil {
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			ctx.JSON(http.StatusNotFound, gin.H{
+				"message": "Users not found",
+			})
+			return
+		}
 	}
 	ctx.JSON(http.StatusCreated, gin.H{
 		"message": "Users successfully updated",

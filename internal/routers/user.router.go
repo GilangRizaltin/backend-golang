@@ -16,7 +16,6 @@ func RouterUser(g *gin.Engine, db *sqlx.DB) {
 	route.GET("", middlewares.JWTGate("Admin"), handler.GetUser)
 	route.GET("/:id", middlewares.JWTGate("Admin", "Normal User"), handler.GetUserProfile)
 	route.POST("", middlewares.JWTGate("Admin"), handler.AddUser)
-	// route.POST("/register", handler.RegisterUser)
 	route.PATCH("/:id", middlewares.JWTGate("Admin", "Normal User"), handler.EditUserProfile)
 	route.DELETE("/:id", middlewares.JWTGate("Admin"), handler.DeleteUser)
 }

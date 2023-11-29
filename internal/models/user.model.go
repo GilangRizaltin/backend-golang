@@ -7,7 +7,7 @@ type UserModel struct {
 	Full_name     *string     `db:"Full_name" form:"Full_name" json:"Full_name" valid:"-"`
 	Phone         *string     `db:"Phone" form:"Phone" json:"Phone" valid:"optional"`
 	Address       *string     `db:"Address" form:"Address" json:"Address" valid:"optional"`
-	Email         string      `db:"Email" form:"Email" json:"Email" valid:"numeric"`
+	Email         string      `db:"Email" form:"Email" json:"Email" valid:"email"`
 	Password      string      `db:"Password" form:"Password" json:"Password" valid:"-"`
 	User_type     string      `db:"User_type" form:"User_type" json:"User_type" valid:"in(Admin|Normal User)optional"`
 	Otp           *int        `db:"Otp" form:"Otp" json:"Otp" valid:"-"`
@@ -22,4 +22,15 @@ type QueryParamsUser struct {
 	Phone     string `form:"Phone" json:"Phone" valid:"numeric, optional"`
 	SortOrder string `form:"SortOrder" json:"SortOrder" valid:"in(asc|desc), optional"`
 	Page      int    `form:"Page" json:"Page" valid:"numeric"`
+}
+
+type UserUpdateModel struct {
+	Photo_profile interface{} `db:"Photo_profile" form:"_" json:"Photo_profile" valid:"optional"`
+	User_name     *string     `db:"User_name" form:"User_name" json:"User_name" valid:"alphanum,optional"`
+	Full_name     *string     `db:"Full_name" form:"Full_name" json:"Full_name" valid:"optional"`
+	Phone         *string     `db:"Phone" form:"Phone" json:"Phone" valid:"optional"`
+	Address       *string     `db:"Address" form:"Address" json:"Address" valid:"optional"`
+	LastPassword  string      `db:"Last_Password" form:"Last_Password" json:"Last_Password" valid:"optional"`
+	NewPassword   string      `db:"New_Password" form:"New_Password" json:"New_Password" valid:"optional"`
+	User_type     string      `db:"User_type" form:"User_type" json:"User_type" valid:"in(Admin|Normal User),optional"`
 }
