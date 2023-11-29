@@ -1,14 +1,16 @@
 package middlewares
 
 import (
+	"Backend_Golang/internal/repositories"
 	"Backend_Golang/pkg"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jmoiron/sqlx"
 )
 
-func JWTGate(allowedRole ...string) gin.HandlerFunc {
+func JWTGate(db *sqlx.DB, allowedRole ...string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		bearerToken := ctx.GetHeader("Authorization")
 		if bearerToken == "" {
@@ -25,6 +27,21 @@ func JWTGate(allowedRole ...string) gin.HandlerFunc {
 		}
 
 		token := strings.Replace(bearerToken, "Bearer ", "", -1)
+		authRepo := repositories.InitializeAuthRepository(db)
+		result, err := authRepo.RepositoryIsTokenBlacklisted(token)
+		if err != nil {
+			ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+				"message": "Error for getting blacklisted token",
+				"Error":   err.Error(),
+			})
+			return
+		}
+		if result {
+			ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"message": "You have log out. Please Log in again",
+			})
+			return
+		}
 		payload, err := pkg.VerifyToken(token)
 		if err != nil {
 			if strings.Contains(err.Error(), "expired") {
@@ -55,17 +72,5 @@ func JWTGate(allowedRole ...string) gin.HandlerFunc {
 		}
 		ctx.Set("Payload", payload)
 		ctx.Next()
-	}
-}
-
-func JWTIsLogin() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		bearerToken := ctx.GetHeader("Authorization")
-		if bearerToken == "" {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"message": "Please login first",
-			})
-			return
-		}
 	}
 }

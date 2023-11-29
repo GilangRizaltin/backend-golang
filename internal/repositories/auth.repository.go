@@ -54,11 +54,21 @@ func (r *AuthRepository) RepositoryResetPassword() {
 }
 
 func (r *AuthRepository) RepositoryLogout(token string) error {
-	query := `insert int jwt (jwt_code) values ($1)`
+	query := `insert into jwt (jwt_code) values ($1)`
 	values := []any{token}
 	_, err := r.Exec(query, values...)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (r *AuthRepository) RepositoryIsTokenBlacklisted(token string) (bool, error) {
+	var count int
+	query := `SELECT COUNT(*) FROM jwt WHERE jwt_code = $1`
+	err := r.Get(&count, query, token)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

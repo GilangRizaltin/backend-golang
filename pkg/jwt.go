@@ -8,14 +8,14 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
-type claims struct {
+type Claims struct {
 	Id   int    `json:"id"`
 	Role string `json:"role"`
 	jwt.RegisteredClaims
 }
 
-func NewPayload(id int, role string) *claims {
-	return &claims{
+func NewPayload(id int, role string) *Claims {
+	return &Claims{
 		Id:   id,
 		Role: role,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -25,7 +25,7 @@ func NewPayload(id int, role string) *claims {
 	}
 }
 
-func (c *claims) GenerateToken() (string, error) {
+func (c *Claims) GenerateToken() (string, error) {
 	jwtSecret := os.Getenv("JWT_KEY")
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, c)
 	result, err := token.SignedString([]byte(jwtSecret))
@@ -35,9 +35,9 @@ func (c *claims) GenerateToken() (string, error) {
 	return result, err
 }
 
-func VerifyToken(token string) (*claims, error) {
+func VerifyToken(token string) (*Claims, error) {
 	jwtSecret := os.Getenv("JWT_KEY")
-	parsedToken, err := jwt.ParseWithClaims(token, &claims{}, func(t *jwt.Token) (interface{}, error) {
+	parsedToken, err := jwt.ParseWithClaims(token, &Claims{}, func(t *jwt.Token) (interface{}, error) {
 		return []byte(jwtSecret), nil
 	})
 
@@ -45,6 +45,6 @@ func VerifyToken(token string) (*claims, error) {
 		return nil, err
 	}
 
-	payload := parsedToken.Claims.(*claims)
+	payload := parsedToken.Claims.(*Claims)
 	return payload, nil
 }
