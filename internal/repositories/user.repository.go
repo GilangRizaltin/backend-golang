@@ -176,7 +176,7 @@ func (r *UserRepository) RepositoryUpdateUser(productID int, body *models.UserUp
 	}
 	params["Id"] = productID
 	query += ` ,update_at = NOW() WHERE id = :Id`
-	// fmt.Println(query)
+	fmt.Println(query)
 	result, err := r.NamedExec(query, params)
 	return result, err
 }

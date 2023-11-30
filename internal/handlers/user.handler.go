@@ -163,7 +163,7 @@ func (h *HandlerUser) AddUser(ctx *gin.Context) {
 			return
 		}
 		defer file.Close()
-		publicId := fmt.Sprintf("%s_%s-%s", "users", "Photo_profile", ctx.Param("id"))
+		publicId := fmt.Sprintf("%s_%s-%s", "users", "Photo_profile", *body.User_name)
 		folder := ""
 		res, err := cld.Uploader(ctx, file, publicId, folder)
 		if err != nil {
@@ -214,8 +214,8 @@ func (h *HandlerUser) AddUser(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusCreated, gin.H{
-		"message":      "User created successfully",
-		"Product_Name": body.User_name})
+		"message":   "User created successfully",
+		"User_Name": body.User_name})
 }
 
 func (h *HandlerUser) EditUserProfile(ctx *gin.Context) {
@@ -285,6 +285,12 @@ func (h *HandlerUser) EditUserProfile(ctx *gin.Context) {
 		return
 	}
 	formFile, _ := ctx.FormFile("Photo_profile")
+	// if err != nil {
+	// 	ctx.JSON(http.StatusInternalServerError, gin.H{
+	// 		"message": err.Error(),
+	// 	})
+	// 	return
+	// }
 	var dataUrl string
 	if formFile != nil {
 		file, err := formFile.Open()
@@ -295,7 +301,7 @@ func (h *HandlerUser) EditUserProfile(ctx *gin.Context) {
 			return
 		}
 		defer file.Close()
-		publicId := fmt.Sprintf("%s_%s-%s", "users", "Photo_profile", ctx.Param("id"))
+		publicId := fmt.Sprintf("%s_%s-%d", "users", "Photo_profile", ID)
 		folder := ""
 		res, err := cld.Uploader(ctx, file, publicId, folder)
 		if err != nil {
@@ -306,6 +312,7 @@ func (h *HandlerUser) EditUserProfile(ctx *gin.Context) {
 		}
 		dataUrl = res.SecureURL
 	}
+	fmt.Println(dataUrl)
 	result, errUpdate := h.RepositoryUpdateUser(ID, &body, dataUrl, newPassword)
 	if errUpdate != nil {
 		// log.Println(err)
