@@ -21,7 +21,7 @@ type QueryParamsProduct struct {
 	ProductName     string `form:"product" json:"search" valid:"alpha,optional"`
 	MaximumPrice    int    `form:"max_price" json:"max_price" valid:"numeric,optional"`
 	MinimumPrice    int    `form:"min_price" json:"min_price" valid:"numeric,optional"`
-	ProductCategory string `form:"product_category" json:"product_category" valid:"in(Coffee|Non - Coffee|Foods), optional"`
+	ProductCategory string `form:"product_category" json:"product_category" valid:"in(Coffee|Non - Coffee|Food), optional"`
 	Sort            string `form:"sort" json:"sort" valid:"in(Cheapest|Most Expensive|New Product|Oldest), optional"`
 	Page            int    `form:"page" json:"page" valid:"numeric, optional"`
 }

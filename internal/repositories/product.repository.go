@@ -121,16 +121,23 @@ func (r *ProductRepository) RepositoryGetDetail(ID int) ([]models.ProductModel, 
 func (r *ProductRepository) RepositoryCreateProduct(body *models.ProductModel, dataUrl []string) error {
 	query := `
 		INSERT INTO products (product_name, category, description, price_default, product_image_1, product_image_2, product_image_3, product_image_4)
-        VALUES (:Product, (SELECT id FROM categories WHERE category_name = :Categories), :Description, :Price, :Product_Image_1, :Product_Image_2, :Product_Image_3, :Product_Image_4);`
+        VALUES (:Product, (SELECT id FROM categories WHERE category_name = :Categories), :Description, :Price, :Product_Image_1, :Product_Image_2, :Product_Image_3, :Product_Image_4)`
 	params := make(map[string]interface{})
 	params["Product"] = body.Product_name
 	params["Categories"] = body.Category
 	params["Description"] = body.Description
 	params["Price"] = body.Price_default
-	params["Product_Image_1"] = dataUrl[0]
-	params["Product_Image_2"] = dataUrl[1]
-	params["Product_Image_3"] = dataUrl[2]
-	params["Product_Image_4"] = dataUrl[3]
+	params["Product_Image_1"] = ""
+	params["Product_Image_2"] = ""
+	params["Product_Image_3"] = ""
+	params["Product_Image_4"] = ""
+	if len(dataUrl) > 0 {
+		for i := 0; i < len(dataUrl); i++ {
+			// query += fmt.Sprintf(", :Product_Image_%d", i+1)
+			params[fmt.Sprintf("Product_Image_%d", i+1)] = dataUrl[i]
+		}
+	}
+	// query += ")"
 	_, err := r.NamedExec(query, params)
 	return err
 }
@@ -141,7 +148,9 @@ func (r *ProductRepository) RepositoryUpdateProduct(productID int, body *models.
         UPDATE products
         SET `
 	params := make(map[string]interface{})
-	if len(body.Photo_index) > 0 {
+	// fmt.Println(body.Photo_index)
+	// fmt.Println(dataUrl)
+	if len(body.Photo_index) > 0 && len(dataUrl) > 0 {
 		for i := 0; i < len(body.Photo_index); i++ {
 			conditional = append(conditional, fmt.Sprintf("product_image_%d = :Product_Image%d", body.Photo_index[i], body.Photo_index[i]))
 			params[fmt.Sprintf("Product_Image%d", body.Photo_index[i])] = dataUrl[i]
@@ -166,7 +175,7 @@ func (r *ProductRepository) RepositoryUpdateProduct(productID int, body *models.
 		query += strings.Join(conditional, ", ") + ", "
 	}
 	params["Id"] = productID
-	fmt.Println(params)
+	// fmt.Println(params)
 	query += ` update_at = NOW() WHERE id = :Id`
 	result, err := r.NamedExec(query, params)
 	// fmt.Println(query)

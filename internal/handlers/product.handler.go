@@ -25,115 +25,72 @@ func InitializeHandler(r *repositories.ProductRepository) *HandlerProduct {
 
 func (h *HandlerProduct) GetProduct(ctx *gin.Context) {
 	var query models.QueryParamsProduct
-	var page int
-	if query.Page == 0 {
-		page = 1
-	}
 	if err := ctx.ShouldBindQuery(&query); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error in binding query get user",
-			"Error":   err,
-		})
+		ctx.JSON(http.StatusBadRequest, helpers.ResponseFailed("Error in binding query get user", err.Error()))
+		return
+	}
+	var page = 1
+	if query.Page != 0 {
+		page = query.Page
 	}
 	if query.MaximumPrice != 0 || query.MinimumPrice != 0 {
 		if query.MaximumPrice < query.MinimumPrice {
-			ctx.JSON(http.StatusBadRequest, gin.H{
-				"message": "Maximum price must be greater than Minimum price",
-			})
+			ctx.JSON(http.StatusBadRequest, helpers.ResponseFailed("Maximum price must be greater than Minimum price", ""))
 			return
 		}
-
 	}
 	if _, err := govalidator.ValidateStruct(&query); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error in Validator",
-			"Error":   err.Error(),
-		})
+		ctx.JSON(http.StatusBadRequest, helpers.ResponseFailed("Error in validation get product", err.Error()))
 		return
 	}
-	// conditions := []string{
-	// 	Product_Name,
-	// 	Maximum_Product_Price,
-	// 	Minimum_Product_Price,
-	// 	Product_Category,
-	// 	sortBy,
-	// }
 	result, err := h.RepositoryGet(&query)
 	data, _ := h.RepositoryCountProduct(&query)
-	//error handling
 	if err != nil {
 		if strings.Contains(err.Error(), "trailing junk after numeric literal") {
-			ctx.JSON(http.StatusBadRequest, gin.H{
-				"message": "Please input right number",
-			})
+			ctx.JSON(http.StatusBadRequest, helpers.ResponseFailed("Please input right number", ""))
 			return
 		}
-		log.Print(err)
-		ctx.JSON(http.StatusInternalServerError, err)
+		ctx.JSON(http.StatusInternalServerError, helpers.ResponseFailed("Error in repository get product", err.Error()))
 		return
 	}
 	if len(result) == 0 {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"message": "Data Not Found",
-		})
+		ctx.JSON(http.StatusNotFound, helpers.ResponseFailed("Data not found", ""))
 		return
 	}
 	url := ctx.Request.URL.RawQuery
 	pages := ctx.Query("page")
-	nextPage, prevPage, lastPage := pagination(url, pages, "product?", data[0], page)
-	ctx.JSON(http.StatusOK, gin.H{
-		"message":    "Get all products success",
-		"data":       result,
-		"page":       page,
-		"total_data": data[0],
-		"nextPage":   nextPage,
-		"prevPage":   prevPage,
-		"lastPage":   lastPage,
-	})
+	meta := helpers.MetaPage(url, pages, "product?", data[0], page)
+	ctx.JSON(http.StatusOK, helpers.ResponseGetData("Successfully Get Product", result, meta))
 }
 
 func (h *HandlerProduct) GetProductDetail(ctx *gin.Context) {
 	ID, _ := strconv.Atoi(ctx.Param("id"))
 	result, err := h.RepositoryGetDetail(ID)
 	if len(result) == 0 {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"message": "Data not found",
-		})
+		ctx.JSON(http.StatusNotFound, helpers.ResponseFailed("Data not found", ""))
 		return
 	}
 	if err != nil {
-		log.Print(err)
-		ctx.JSON(http.StatusInternalServerError, err)
+		ctx.JSON(http.StatusInternalServerError, helpers.ResponseFailed("Error in repository get product detail", err.Error()))
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Get product success",
-		"Product": result})
+	ctx.JSON(http.StatusOK, helpers.ResponseSuccess("Successfully Get Product Detail", result))
 }
 
 func (h *HandlerProduct) CreateProduct(ctx *gin.Context) {
 	var newProduct models.ProductModel
 	if err := ctx.ShouldBind(&newProduct); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error in binding query product",
-			"error":   err.Error(),
-		})
+		ctx.JSON(http.StatusBadRequest, helpers.ResponseFailed("Error in binding body product", err.Error()))
 		return
 	}
 	if _, err := govalidator.ValidateStruct(&newProduct); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error in Validator",
-			"Error":   err.Error(),
-		})
+		ctx.JSON(http.StatusBadRequest, helpers.ResponseFailed("Error in validation body product", err.Error()))
 		return
 	}
 	//cloud upload
 	cld, errCloud := helpers.InitCloudinary()
 	if errCloud != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Error in initialize cloudinary",
-			"error":   errCloud,
-		})
+		ctx.JSON(http.StatusInternalServerError, helpers.ResponseFailed("Error initializes cloudinary", errCloud.Error()))
 		return
 	}
 	formFiles, _ := ctx.MultipartForm()
@@ -150,10 +107,7 @@ func (h *HandlerProduct) CreateProduct(ctx *gin.Context) {
 		for idx, formFile := range files {
 			file, err := formFile.Open()
 			if err != nil {
-				ctx.JSON(http.StatusInternalServerError, gin.H{
-					"message": "Error opening file",
-					"error":   err.Error(),
-				})
+				ctx.JSON(http.StatusInternalServerError, helpers.ResponseFailed("Error opening file", err.Error()))
 				return
 			}
 			defer file.Close()
@@ -161,10 +115,7 @@ func (h *HandlerProduct) CreateProduct(ctx *gin.Context) {
 			folder := ""
 			res, err := cld.Uploader(ctx, file, publicID, folder)
 			if err != nil {
-				ctx.JSON(http.StatusInternalServerError, gin.H{
-					"message": "Error uploading file to Cloudinary",
-					"error":   err.Error(),
-				})
+				ctx.JSON(http.StatusInternalServerError, helpers.ResponseFailed("Error uploading file to cloudinary", err.Error()))
 				return
 			}
 			dataUrls = append(dataUrls, res.SecureURL)
@@ -172,17 +123,13 @@ func (h *HandlerProduct) CreateProduct(ctx *gin.Context) {
 	}
 	if err := h.RepositoryCreateProduct(&newProduct, dataUrls); err != nil {
 		if strings.Contains(err.Error(), "unique_product_name") {
-			ctx.JSON(http.StatusBadRequest, gin.H{
-				"message": "Product name already used",
-			})
+			ctx.JSON(http.StatusBadRequest, helpers.ResponseFailed("Product name already used", ""))
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, helpers.ResponseFailed("Error in repository create product", err.Error()))
 		return
 	}
-	ctx.JSON(http.StatusCreated, gin.H{
-		"message":      "Product created successfully",
-		"Product_Name": newProduct.Product_name})
+	ctx.JSON(http.StatusCreated, helpers.ResponseSuccess("Successfully create product", newProduct.Product_name))
 }
 
 func (h *HandlerProduct) UpdateProduct(ctx *gin.Context) {
@@ -212,6 +159,13 @@ func (h *HandlerProduct) UpdateProduct(ctx *gin.Context) {
 		return
 	}
 	formFiles, _ := ctx.MultipartForm()
+	// if err != nil {
+	// 	ctx.JSON(http.StatusInternalServerError, gin.H{
+	// 		"message": "Error in get data photo",
+	// 		"error":   err.Error(),
+	// 	})
+	// 	return
+	// }
 	var dataUrls []string
 	dataIndexPhoto := updateProduct.Photo_index
 	if formFiles != nil {
