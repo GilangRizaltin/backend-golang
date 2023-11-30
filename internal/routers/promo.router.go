@@ -14,7 +14,7 @@ func RouterPromo(g *gin.Engine, db *sqlx.DB) {
 	repository := repositories.InitializePromoRepository(db)
 	handler := handlers.InitializePromoHandler(repository)
 	route.GET("", handler.GetPromo)
-	route.POST("", middlewares.JWTGate("Admin"), handler.CreatePromo)
-	route.PATCH("/:id", middlewares.JWTGate("Admin"), handler.UpdatePromo)
-	route.DELETE("/:id", middlewares.JWTGate("Admin"), handler.DeletePromo)
+	route.POST("", middlewares.JWTGate(db, "Admin"), handler.CreatePromo)
+	route.PATCH("/:id", middlewares.JWTGate(db, "Admin"), handler.UpdatePromo)
+	route.DELETE("/:id", middlewares.JWTGate(db, "Admin"), handler.DeletePromo)
 }

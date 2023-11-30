@@ -38,7 +38,7 @@ func (r *PromoRepository) RepositoryGetPromo(body *models.QueryParamsPromo) ([]m
 		conditional = append(conditional, "p.promo_code ilike $"+fmt.Sprint(len(values)+1))
 		values = append(values, "%"+body.Promo_code+"%")
 	}
-	if body.Time_end.String() != "" {
+	if body.Time_end != nil && body.Time_end.String() != "" {
 		conditional = append(conditional, "p.ended_at < $"+fmt.Sprint(len(values)+1))
 		values = append(values, body.Time_end.String())
 	}
@@ -108,7 +108,7 @@ func (r *PromoRepository) RepositoryCountPromo(body *models.QueryParamsPromo) ([
 		conditional = append(conditional, "p.promo_code ilike $"+fmt.Sprint(len(values)+1))
 		values = append(values, "%"+body.Promo_code+"%")
 	}
-	if body.Time_end.String() != "" {
+	if body.Time_end != nil && body.Time_end.String() != "" {
 		conditional = append(conditional, "p.ended_at < $"+fmt.Sprint(len(values)+1))
 		values = append(values, body.Time_end.String())
 	}
