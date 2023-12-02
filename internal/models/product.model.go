@@ -40,7 +40,8 @@ type StatisticProduct struct {
 }
 
 type PopularProduct struct {
-	Product_name  string      `db:"Product" form:"Product" json:"Product" valid:"optional"`
+	Product_Id int `db:"Id" form:"Id" json:"Id" valid:"optional"`
+	// Product_name  string      `db:"Product" form:"Product" json:"Product" valid:"optional"`
 	TotalQuantity interface{} `db:"Total_Quantity" json:"Total_Quantity"`
 	Total_Income  interface{} `db:"Total_Income" json:"Total_Income"`
 }

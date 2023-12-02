@@ -233,7 +233,7 @@ func (r *ProductRepository) RepositoryCountProduct(body *models.QueryParamsProdu
 	return total_data, nil
 }
 
-func (r *ProductRepository) RepositoryStatisticProduct(dateStart, dateEnd string) ([]models.StatisticProduct, error) {
+func (r *ProductRepository) RepositoryStatisticOrder(dateStart, dateEnd string) ([]models.StatisticProduct, error) {
 	data := []models.StatisticProduct{}
 	query := `SELECT 
                 dates::date AS "OrderDate",
@@ -259,10 +259,10 @@ func (r *ProductRepository) RepositoryStatisticProduct(dateStart, dateEnd string
 	return data, nil
 }
 
-func (r *ProductRepository) RepositoryPopularProduct(dateStart, dateEnd string) ([]models.PopularProduct, error) {
+func (r *ProductRepository) RepositoryStatisticProduct(dateStart, dateEnd string) ([]models.PopularProduct, error) {
 	data := []models.PopularProduct{}
 	query := `SELECT
-    p.product_name as "Product",
+	p.id as "Id",
     SUM(op.quantity) as "Total_Quantity",
     SUM(op.subtotal) as "Total_Income"
 FROM
@@ -276,17 +276,51 @@ WHERE
 AND 
 	op.created_at < $2::timestamp
 GROUP BY
-    p.product_name
+    p.id
 HAVING
     SUM(op.quantity) IS NOT NULL
 ORDER BY
-    "Product" ASC`
+    "Total_Quantity" DESC`
 	values := []any{
 		dateStart, dateEnd,
 	}
 	err := r.Select(&data, query, values...)
 	if err != nil {
 		return nil, err
+	}
+	return data, nil
+}
+
+func (r *ProductRepository) RepositoryFavouriteProduct(dataPopular []models.PopularProduct) ([]models.ProductModel, error) {
+	data := []models.ProductModel{}
+	for _, value := range dataPopular {
+		query := `
+		SELECT
+			p.id as "No",
+			p.product_image_1 as "Product_photo_1",
+			p.product_image_2 as "Product_photo_2",
+			p.product_image_3 as "Product_photo_3",
+			p.product_image_4 as "Product_photo_4",
+			p.product_name as "Product",
+			c.category_name as "Categories",
+			p.description as "Description",
+			p.price_default as "Price"
+		FROM
+			products p
+		JOIN
+			categories c ON p.category = c.id
+		WHERE
+			p.id = $1
+		ORDER BY p.id DESC
+		LIMIT 1 OFFSET 0`
+
+		var product models.ProductModel
+		err := r.Get(&product, query, value.Product_Id)
+		if err != nil {
+			return nil, err
+		}
+
+		data = append(data, product)
 	}
 	return data, nil
 }
