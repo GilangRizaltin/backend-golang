@@ -261,29 +261,32 @@ func (r *ProductRepository) RepositoryStatisticOrder(dateStart, dateEnd string) 
 
 func (r *ProductRepository) RepositoryStatisticProduct(dateStart, dateEnd string) ([]models.PopularProduct, error) {
 	data := []models.PopularProduct{}
+	values := []any{}
 	query := `SELECT
 	p.id as "Id",
     SUM(op.quantity) as "Total_Quantity",
     SUM(op.subtotal) as "Total_Income"
-FROM
+	FROM
     orders_products AS op
-JOIN
+	JOIN
     products AS p
-ON
-    op.product_id = p.id
-WHERE
-	op.created_at > $1::timestamp
-AND 
-	op.created_at < $2::timestamp
-GROUP BY
-    p.id
-HAVING
-    SUM(op.quantity) IS NOT NULL
-ORDER BY
-    "Total_Quantity" DESC`
-	values := []any{
-		dateStart, dateEnd,
+	ON
+    op.product_id = p.id`
+	if dateStart != "" && dateEnd != "" {
+		query += `
+	WHERE 
+		op.created_at > $1::timestamp
+	AND 
+		op.created_at < $2::timestamp`
+		values = append(values, dateStart, dateEnd)
 	}
+	query += ` GROUP BY
+    p.id
+	HAVING
+    SUM(op.quantity) IS NOT NULL
+	ORDER BY
+    "Total_Quantity" DESC
+	LIMIT 4 OFFSET 0`
 	err := r.Select(&data, query, values...)
 	if err != nil {
 		return nil, err
@@ -310,9 +313,7 @@ func (r *ProductRepository) RepositoryFavouriteProduct(dataPopular []models.Popu
 		JOIN
 			categories c ON p.category = c.id
 		WHERE
-			p.id = $1
-		ORDER BY p.id DESC
-		LIMIT 1 OFFSET 0`
+			p.id = $1`
 
 		var product models.ProductModel
 		err := r.Get(&product, query, value.Product_Id)
