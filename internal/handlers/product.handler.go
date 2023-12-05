@@ -29,7 +29,14 @@ func (h *HandlerProduct) GetProduct(ctx *gin.Context) {
 		log.Println(err.Error())
 		return
 	}
-	if query.MaximumPrice != 0 || query.MinimumPrice != 0 {
+	if query.ProductName != "" {
+		isValid := helpers.ValidateInput(query.ProductName)
+		if !isValid {
+			ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Wrong input for product name", nil, nil))
+			return
+		}
+	}
+	if query.MaximumPrice != 0 && query.MinimumPrice != 0 {
 		if query.MaximumPrice < query.MinimumPrice {
 			ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Maximum price must greater than minimum price", nil, nil))
 			return
@@ -217,25 +224,17 @@ func (h *HandlerProduct) DeleteProduct(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, helpers.NewResponse("Successfully delete product", ID, nil))
 }
 
-func (h *HandlerProduct) GetStatisticOrder(ctx *gin.Context) {
+func (h *HandlerProduct) GetStatisticProduct(ctx *gin.Context) {
 	dateStart := ctx.Query("date-start")
 	dateEnd := ctx.Query("date-end")
-	result, err := h.RepositoryStatisticOrder(dateStart, dateEnd)
+	result, err := h.RepositoryStatisticProduct(dateStart, dateEnd, "")
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
 		log.Println(err.Error())
 		return
 	}
-	ctx.JSON(http.StatusOK, helpers.NewResponse("Successfully get order statistic", result, nil))
-}
-
-func (h *HandlerProduct) GetStatisticProduct(ctx *gin.Context) {
-	dateStart := ctx.Query("date-start")
-	dateEnd := ctx.Query("date-end")
-	result, err := h.RepositoryStatisticProduct(dateStart, dateEnd)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
-		log.Println(err.Error())
+	if len(result) < 1 {
+		ctx.JSON(http.StatusNotFound, helpers.NewResponse("Data not found", nil, nil))
 		return
 	}
 	ctx.JSON(http.StatusOK, helpers.NewResponse("Successfully get product statistic", result, nil))
@@ -244,7 +243,7 @@ func (h *HandlerProduct) GetStatisticProduct(ctx *gin.Context) {
 func (h *HandlerProduct) GetFavouriteProduct(ctx *gin.Context) {
 	dateStart := ctx.Query("date-start")
 	dateEnd := ctx.Query("date-end")
-	data, err := h.RepositoryStatisticProduct(dateStart, dateEnd)
+	data, err := h.RepositoryStatisticProduct(dateStart, dateEnd, "favourite")
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error Statistic Product", nil, nil))
 		log.Println(err.Error())

@@ -9,12 +9,12 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func RouterPromo(g *gin.Engine, db *sqlx.DB) {
+func RouterPromo(authRepo *repositories.AuthRepository, g *gin.Engine, db *sqlx.DB) {
 	route := g.Group("/promo")
 	repository := repositories.InitializePromoRepository(db)
 	handler := handlers.InitializePromoHandler(repository)
 	route.GET("", handler.GetPromo)
-	route.POST("", middlewares.JWTGate(db, "Admin"), handler.CreatePromo)
-	route.PATCH("/:id", middlewares.JWTGate(db, "Admin"), handler.UpdatePromo)
-	route.DELETE("/:id", middlewares.JWTGate(db, "Admin"), handler.DeletePromo)
+	route.POST("", middlewares.JWTGate(authRepo, db, "Admin"), handler.CreatePromo)
+	route.PATCH("/:id", middlewares.JWTGate(authRepo, db, "Admin"), handler.UpdatePromo)
+	route.DELETE("/:id", middlewares.JWTGate(authRepo, db, "Admin"), handler.DeletePromo)
 }

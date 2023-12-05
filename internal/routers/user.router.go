@@ -9,13 +9,14 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func RouterUser(g *gin.Engine, db *sqlx.DB) {
+func RouterUser(authRepo *repositories.AuthRepository, g *gin.Engine, db *sqlx.DB) {
 	route := g.Group("/user")
 	repository := repositories.InitializeUserRepository(db)
 	handler := handlers.InitializeUserHandler(repository)
-	route.GET("", middlewares.JWTGate(db, "Admin"), handler.GetUser)
-	route.GET("/:id", middlewares.JWTGate(db, "Admin", "Normal User"), handler.GetUserProfile)
-	route.POST("", middlewares.JWTGate(db, "Admin"), handler.AddUser)
-	route.PATCH("/:id", middlewares.JWTGate(db, "Admin", "Normal User"), handler.EditUserProfile)
-	route.DELETE("/:id", middlewares.JWTGate(db, "Admin"), handler.DeleteUser)
+	route.GET("", middlewares.JWTGate(authRepo, db, "Admin"), handler.GetUser)
+	route.GET("/profile", middlewares.JWTGate(authRepo, db, "Admin", "Normal User"), handler.GetUserProfile)
+	route.POST("", middlewares.JWTGate(authRepo, db, "Admin"), handler.AddUser)
+	route.PATCH("", middlewares.JWTGate(authRepo, db, "Admin", "Normal User"), handler.EditUserProfile)
+	route.PATCH("/:id", middlewares.JWTGate(authRepo, db, "Admin"), handler.EditUserProfile)
+	route.DELETE("/:id", middlewares.JWTGate(authRepo, db, "Admin"), handler.DeleteUser)
 }

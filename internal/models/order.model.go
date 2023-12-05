@@ -38,6 +38,11 @@ type QueryParamsOrder struct {
 	Page     int    `form:"page" json:"page" valid:"numeric,optional"`
 }
 
+type StatisticOrder struct {
+	OrderDate     *time.Time  `db:"OrderDate" json:"OrderDate"`
+	TotalQuantity interface{} `db:"TotalQuantity" json:"TotalQuantity"`
+}
+
 type OrderDataStatus struct {
 	Status string `db:"Status" form:"Status" json:"Status" valid:"-"`
 	Total  int    `db:"Total" form:"Total" json:"Total" valid:"-"`

@@ -8,11 +8,11 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func RouterAuth(g *gin.Engine, db *sqlx.DB) {
+func RouterAuth(authRepo *repositories.AuthRepository, g *gin.Engine, db *sqlx.DB) {
 	route := g.Group("/auth")
-	repository := repositories.InitializeAuthRepository(db)
-	handler := handlers.InitializeAuthHandler(repository)
+	// repository := repositories.InitializeAuthRepository(db)
+	handler := handlers.InitializeAuthHandler(authRepo)
 	route.POST("/register", handler.Register)
 	route.POST("/login", handler.Login)
-	route.DELETE("", handler.Logout)
+	route.DELETE("/logout", handler.Logout)
 }

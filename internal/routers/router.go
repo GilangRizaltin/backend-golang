@@ -2,6 +2,7 @@ package routers
 
 import (
 	"Backend_Golang/internal/middlewares"
+	"Backend_Golang/internal/repositories"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -15,11 +16,12 @@ func New(db *sqlx.DB) *gin.Engine {
 			"message": "success",
 		})
 	})
+	authRepo := repositories.InitializeAuthRepository(db)
 	router.Use(middlewares.CORSMiddleware)
-	RouterProduct(router, db)
-	RouterPromo(router, db)
-	RouterUser(router, db)
-	RouterOrder(router, db)
-	RouterAuth(router, db)
+	RouterProduct(authRepo, router, db)
+	RouterPromo(authRepo, router, db)
+	RouterUser(authRepo, router, db)
+	RouterOrder(authRepo, router, db)
+	RouterAuth(authRepo, router, db)
 	return router
 }

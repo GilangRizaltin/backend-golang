@@ -35,33 +35,36 @@ func (r *ProductRepository) RepositoryGet(body *models.QueryParamsProduct) ([]mo
 			products p
 		JOIN
 			categories c ON p.category = c.id
+		WHERE p.deleted_at is null 
 	`
 	var conditional []string
 	values := []any{}
 	if body.ProductId != 0 {
-		conditional = append(conditional, "p.id = $"+fmt.Sprint(len(values)+1))
+		conditional = append(conditional, fmt.Sprintf("p.id = $%d", len(values)+1))
 		values = append(values, body.ProductId)
 	}
 	if body.ProductName != "" {
-		conditional = append(conditional, "p.product_name ilike $"+fmt.Sprint(len(values)+1))
+		conditional = append(conditional, fmt.Sprintf("p.product_name ilike $%d", len(values)+1))
 		values = append(values, "%"+body.ProductName+"%")
 	}
 	if body.MaximumPrice != 0 {
-		conditional = append(conditional, "p.price_default <  $"+fmt.Sprint(len(values)+1))
+		conditional = append(conditional, fmt.Sprintf("p.price_default < $%d", len(values)+1))
 		values = append(values, body.MaximumPrice)
 	}
 	if body.MinimumPrice != 0 {
-		conditional = append(conditional, "p.price_default >  $"+fmt.Sprint(len(values)+1))
+		conditional = append(conditional, fmt.Sprintf("p.price_default > $%d", len(values)+1))
 		values = append(values, body.MinimumPrice)
 	}
 	if body.ProductCategory != "" {
-		conditional = append(conditional, "c.category_name = $"+fmt.Sprint(len(values)+1))
+		conditional = append(conditional, fmt.Sprintf("c.category_name = $%d", len(values)+1))
 		values = append(values, body.ProductCategory)
 	}
-	if len(conditional) > 0 {
-		query += " WHERE " + strings.Join(conditional, " AND ")
+	if len(conditional) == 1 {
+		query += fmt.Sprintf(" AND %s", conditional[0])
 	}
-	// query += " WHERE p.deleted_at is null "
+	if len(conditional) > 1 {
+		query += fmt.Sprintf(" AND %s", strings.Join(conditional, " AND "))
+	}
 	if body.Sort == "" {
 		query += " ORDER BY p.id asc"
 	}
@@ -227,43 +230,18 @@ func (r *ProductRepository) RepositoryCountProduct(body *models.QueryParamsProdu
 	err := r.Select(&total_data, query, values...)
 	if err != nil {
 		// log.Fatalln(err)
-		fmt.Println(query)
+		// log.Println(query)
 		return nil, err
 	}
 	return total_data, nil
 }
 
-func (r *ProductRepository) RepositoryStatisticOrder(dateStart, dateEnd string) ([]models.StatisticProduct, error) {
-	data := []models.StatisticProduct{}
-	query := `SELECT 
-                dates::date AS "OrderDate",
-                SUM(op.quantity) AS "TotalQuantity"
-              FROM 
-                generate_series($1::timestamp, $2::timestamp, interval '1 day') dates
-              LEFT JOIN 
-                orders_products AS op
-              ON 
-                DATE(op.created_at) = dates::date
-              GROUP BY 
-                dates::date
-              ORDER BY 
-                dates::date`
-	values := []any{
-		dateStart, dateEnd,
-	}
-	err := r.Select(&data, query, values...)
-	// fmt.Println(query)
-	if err != nil {
-		return nil, err
-	}
-	return data, nil
-}
-
-func (r *ProductRepository) RepositoryStatisticProduct(dateStart, dateEnd string) ([]models.PopularProduct, error) {
+func (r *ProductRepository) RepositoryStatisticProduct(dateStart, dateEnd, conditions string) ([]models.PopularProduct, error) {
 	data := []models.PopularProduct{}
 	values := []any{}
 	query := `SELECT
 	p.id as "Id",
+	p.product_name as "Product",
     SUM(op.quantity) as "Total_Quantity",
     SUM(op.subtotal) as "Total_Income"
 	FROM
@@ -285,9 +263,12 @@ func (r *ProductRepository) RepositoryStatisticProduct(dateStart, dateEnd string
 	HAVING
     SUM(op.quantity) IS NOT NULL
 	ORDER BY
-    "Total_Quantity" DESC
-	LIMIT 4 OFFSET 0`
+    "Total_Quantity" DESC`
+	if conditions == "favourite" {
+		query += ` LIMIT 4 OFFSET 0`
+	}
 	err := r.Select(&data, query, values...)
+	// fmt.Println(query)
 	if err != nil {
 		return nil, err
 	}

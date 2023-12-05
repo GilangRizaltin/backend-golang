@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"Backend_Golang/internal/helpers"
 	"Backend_Golang/internal/models"
 	"Backend_Golang/internal/repositories"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -21,71 +23,60 @@ func InitializeOrderHandler(r *repositories.OrderRepository) *HandlerOrder {
 
 func (h *HandlerOrder) GetOrder(ctx *gin.Context) {
 	var query models.QueryParamsOrder
-	var page int
-	if query.Page == 0 {
-		page = 1
-	}
-	// filter := []string{
-	// 	Status,
-	// 	Sort,
-	// }
 	if err := ctx.ShouldBindQuery(&query); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error in binding query get user",
-			"Error":   err,
-		})
+		log.Println(err.Error())
+		ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Error in binding query order", nil, nil))
 	}
 	result, err := h.RepositoryGetOrder(&query)
 	data, _ := h.RepositoryCountOrder(&query)
 	if err != nil {
-		log.Print(err)
-		ctx.JSON(http.StatusInternalServerError, err)
+		log.Println(err)
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
 		return
 	}
 	if len(result) == 0 {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"message": "Data Not Found",
-		})
+		ctx.JSON(http.StatusNotFound, helpers.NewResponse("Data not found", nil, nil))
 		return
 	}
-	url := ctx.Request.URL.RawQuery
-	pages := ctx.Query("page")
-	nextPage, prevPage, lastPage := pagination(url, pages, "order?", data[0], page)
-	ctx.JSON(http.StatusOK, gin.H{
-		"message":    "Get all order success",
-		"data":       result,
-		"page":       page,
-		"total_data": data[0],
-		"nextPage":   nextPage,
-		"prevPage":   prevPage,
-		"lastPage":   lastPage,
-	})
+	// resultProduct, err := h.RepositoryGetOrderDetail(0, result)
+	// if err != nil {
+	// 	ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Error fet order product", nil, nil))
+	// 	return
+	// }
+	meta := helpers.GetPagination(ctx, data, query.Page)
+	ctx.JSON(http.StatusOK, helpers.NewResponse("Successfully Get Order", result, &meta))
 }
 
 func (h *HandlerOrder) GetOrderOnDetail(ctx *gin.Context) {
 	order_id := ctx.Param("order_id")
 	id, err := strconv.Atoi(order_id)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, err.Error())
+		ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Error conversion string", nil, nil))
 		return
 	}
-	result, err := h.RepositoryGetOrderDetail(id)
+	result, err := h.RepositoryGetOrderDetail(id, nil)
 	if err != nil {
-		log.Print(err)
-		ctx.JSON(http.StatusInternalServerError, err)
+		log.Println(err.Error())
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
 		return
 	}
 	if len(result) == 0 {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"message": "Data Not Found",
-			"result":  result,
-		})
+		ctx.JSON(http.StatusNotFound, helpers.NewResponse("Data order detail not found", nil, nil))
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Get all promo success",
-		"data":    result,
-	})
+	ctx.JSON(http.StatusOK, helpers.NewResponse("Successfully get detail order", result, nil))
+}
+
+func (h *HandlerOrder) GetStatisticOrder(ctx *gin.Context) {
+	dateStart := ctx.Query("date-start")
+	dateEnd := ctx.Query("date-end")
+	result, err := h.RepositoryStatisticOrder(dateStart, dateEnd)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
+		log.Println(err.Error())
+		return
+	}
+	ctx.JSON(http.StatusOK, helpers.NewResponse("Successfully get order statistic", result, nil))
 }
 
 func (h *HandlerOrder) GetOrderStatisticByStatus(ctx *gin.Context) {
@@ -99,107 +90,88 @@ func (h *HandlerOrder) GetOrderStatisticByStatus(ctx *gin.Context) {
 	// }
 	result, err := h.RepositoryGetStatisticByStatus()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Data Not Found",
-			"Error":   err.Error(),
-		})
+		log.Println(err.Error())
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Successfully get order statistic by status",
-		"data":    result,
-	})
+	if len(result) < 1 {
+		ctx.JSON(http.StatusNotFound, helpers.NewResponse("Data not found", nil, nil))
+		return
+	}
+	ctx.JSON(http.StatusOK, helpers.NewResponse("Successfully get order statistic by status", result, nil))
 }
 
 func (h *HandlerOrder) CreateOrder(ctx *gin.Context) {
 	var newOrder models.OrderModel
 	var orderId string
+	id, _ := helpers.GetPayload(ctx)
 	if err := ctx.ShouldBind(&newOrder); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error in binding body order",
-			"error":   err.Error(),
-		})
+		log.Println(err.Error())
+		ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Error in binding body order", nil, nil))
 		return
 	}
 	if _, err := govalidator.ValidateStruct(&newOrder); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error in Validator",
-			"Error":   err.Error(),
-		})
+		log.Println(err.Error())
+		ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Wrong input after validation", nil, nil))
 		return
 	}
 	tx, errTx := h.Beginx()
 	if errTx != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Error in tx",
-			"Error":   errTx.Error(),
-		})
+		log.Println()
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Error in begin TX", nil, nil))
 		return
 	}
 	defer tx.Rollback()
-	result, err := h.RepositoryCreateOrder(&newOrder, tx)
-	for result.Next() {
-		var Id string
-		err = result.Scan(&Id)
-		if Id != "" {
-			log.Println(Id)
-			orderId = Id
-			break
+	result, err := h.RepositoryCreateOrder(id, &newOrder, tx)
+	var Id string
+	if result != nil {
+		for result.Next() {
+			err = result.Scan(&Id)
+			if Id != "" {
+				log.Println(Id)
+				orderId = Id
+				break
+			}
 		}
 	}
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Error in Creating Order",
-			"Error":   err.Error(),
-			// "Promo":   newOrder.Promo,
-			// "Id":      orderId,
-		})
+		log.Println(err.Error())
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Error in insert order", nil, nil))
 		return
 	}
 	result.Rows.Close()
 	if _, errCreateOrderProduct := h.RepositoryCreateOrderProduct(&newOrder, tx, orderId); errCreateOrderProduct != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Error in Creating Order Product",
-			"Error":   errCreateOrderProduct.Error(),
-		})
+		log.Println(errCreateOrderProduct.Error())
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Error in insert order product", nil, nil))
 		return
 	}
 	if err := tx.Commit(); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Error in Comitting Order",
-			"Error":   err.Error(),
-		})
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Error in comitting order", nil, nil))
 		return
 	}
-	ctx.JSON(http.StatusCreated, gin.H{
-		"message": "Successfully Create Order",
-		"Id":      orderId,
-	})
+	ctx.JSON(http.StatusCreated, helpers.NewResponse(fmt.Sprintf("Successfully create order. Id = %s", Id), nil, nil))
 }
 
 func (h *HandlerOrder) UpdateOrder(ctx *gin.Context) {
 	var updateOrder models.OrderModel
 	ID, _ := strconv.Atoi(ctx.Param("id"))
 	if err := ctx.ShouldBind(&updateOrder); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		log.Println(err.Error())
+		ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Error in binding body update order", nil, nil))
 		return
 	}
 	result, err := h.RepositoryUpdateOrder(ID, &updateOrder)
 	if err != nil {
-		log.Fatalln(err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Println(err.Error())
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
 		return
 	}
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"message": "Order not found",
-		})
+		ctx.JSON(http.StatusNotFound, helpers.NewResponse("Data not found", nil, nil))
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Order status successfully updated",
-	})
+	ctx.JSON(http.StatusOK, helpers.NewResponse(fmt.Sprintf("Successfully update data order %d to %s", ID, updateOrder.Status), nil, nil))
 }
 
 // func (h *HandlerOrder) UpdateOrderDetail(ctx *gin.Context) {
@@ -231,23 +203,19 @@ func (h *HandlerOrder) DeleteOrder(ctx *gin.Context) {
 	ID, _ := strconv.Atoi(ctx.Param("order_id"))
 	result, err := h.RepositoryDeleteProduct(ID)
 	if err != nil {
-		log.Print(err)
-		ctx.JSON(http.StatusInternalServerError, err)
+		log.Print(err.Error())
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
 		return
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		log.Print(err)
-		ctx.JSON(http.StatusInternalServerError, err)
+		log.Print(err.Error())
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Error in rows affected", nil, nil))
 		return
 	}
 	if rowsAffected == 0 {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"message": "Order not found",
-		})
+		ctx.JSON(http.StatusNotFound, helpers.NewResponse("Data not found", nil, nil))
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Order successfully deleted",
-	})
+	ctx.JSON(http.StatusOK, helpers.NewResponse(fmt.Sprintf("Successfully delete order %d", ID), nil, nil))
 }

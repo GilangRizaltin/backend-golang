@@ -1,9 +1,12 @@
 package models
 
-import "mime/multipart"
+import (
+	"mime/multipart"
+	"time"
+)
 
 type UserModel struct {
-	Id            int         `db:"No" valid:"-"`
+	Id            int         `db:"No" json:"Id" valid:"-"`
 	Photo_profile interface{} `db:"Photo_profile" form:"_" json:"Photo_profile" valid:"-"`
 	User_name     *string     `db:"User_name" form:"User_name" json:"User_name" valid:"alphanum,optional"`
 	Full_name     *string     `db:"Full_name" form:"Full_name" json:"Full_name" valid:"-"`
@@ -13,20 +16,21 @@ type UserModel struct {
 	Password      string      `db:"Password" form:"Password" json:"Password" valid:"-"`
 	User_type     string      `db:"User_type" form:"User_type" json:"User_type" valid:"in(Admin|Normal User)optional"`
 	Otp           *int        `db:"Otp" form:"Otp" json:"Otp" valid:"-"`
-	// Created_at    *time.Time  `db:"created_at"`
+	Created_at    *time.Time  `db:"created_at" json:"created_at" valid:"-"`
 }
 
 type QueryParamsUser struct {
-	Userid    string `form:"User_id" json:"User_id" valid:"numeric,optional"`
-	Username  string `form:"User_name" json:"User_name" valid:"alphanum,optional"`
-	Fullname  string `form:"Full_name" json:"Full_name" valid:"alpha, optional"`
-	Email     string `form:"Email" json:"Email" valid:"email, optional"`
-	Phone     string `form:"Phone" json:"Phone" valid:"numeric, optional"`
-	SortOrder string `form:"SortOrder" json:"SortOrder" valid:"in(asc|desc), optional"`
-	Page      int    `form:"Page" json:"Page" valid:"numeric"`
+	Userid    string `form:"user_id" json:"user_id" valid:"numeric,optional"`
+	Username  string `form:"user_name" json:"user_name" valid:"alphanum,optional"`
+	Fullname  string `form:"full_name" json:"full_name" valid:"alpha, optional"`
+	Email     string `form:"email" json:"email" valid:"email, optional"`
+	Phone     string `form:"phone" json:"phone" valid:"numeric, optional"`
+	SortOrder string `form:"sortOrder" json:"sortOrder" valid:"in(asc|desc), optional"`
+	Page      int    `form:"page" json:"page" valid:"numeric"`
 }
 
 type UserUpdateModel struct {
+	Userid        int            `form:"user_id" json:"user_id" valid:"numeric,optional"`
 	Photo_profile multipart.File `form:"_" json:"Photo_profile" valid:"optional"`
 	User_name     *string        `form:"User_name" json:"User_name" valid:"alphanum,optional"`
 	Full_name     *string        `form:"Full_name" json:"Full_name" valid:"optional"`

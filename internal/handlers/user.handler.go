@@ -25,51 +25,32 @@ func InitializeUserHandler(r *repositories.UserRepository) *HandlerUser {
 
 func (h *HandlerUser) GetUser(ctx *gin.Context) {
 	var query models.QueryParamsUser
-	var page int
-	if query.Page == 0 {
-		page = 1
-	}
-	url := ctx.Request.URL.RawQuery
-	pages := ctx.Query("page")
-	if query.Page == 0 {
-		query.Page = 1
-	}
 	if err := ctx.ShouldBindQuery(&query); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error in binding query get user",
-			"Error":   err,
-		})
+		ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Error binding query user", nil, nil))
+		log.Println(err.Error())
 	}
 	if _, err := govalidator.ValidateStruct(&query); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error in Validator",
-			"Error":   err.Error(),
-		})
+		ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Wrong input after validation", nil, nil))
+		log.Println(err.Error())
 		return
 	}
 	result, err := h.RepositoryGetUser(&query)
 	data, _ := h.RepositoryCountUser(&query)
 	if err != nil {
-		log.Print(err)
-		ctx.JSON(http.StatusInternalServerError, err)
+		log.Println(err.Error())
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
 		return
 	}
 	if len(result) == 0 {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"message": "Data Not Found",
-		})
+		ctx.JSON(http.StatusNotFound, helpers.NewResponse("Data not found", nil, nil))
 		return
 	}
-	nextPage, prevPage, lastPage := helpers.MetaPagination(url, pages, "user?", data, page)
-	ctx.JSON(http.StatusOK, gin.H{
-		"message":    "Get all users success",
-		"data":       result,
-		"total_data": data,
-		"page":       query.Page,
-		"next_page":  nextPage,
-		"prev_page":  prevPage,
-		"total_page": lastPage,
-	})
+	if len(data) < 1 {
+		ctx.JSON(http.StatusNotFound, helpers.NewResponse("Data not found", nil, nil))
+		return
+	}
+	meta := helpers.GetPagination(ctx, data, query.Page)
+	ctx.JSON(http.StatusOK, helpers.NewResponse("Successfully Get User", result, &meta))
 }
 
 func (h *HandlerUser) GetUserProfile(ctx *gin.Context) {
@@ -79,77 +60,32 @@ func (h *HandlerUser) GetUserProfile(ctx *gin.Context) {
 	result, err := h.RepositoryGetUserProfile(id)
 	if err != nil {
 		log.Print(err)
-		ctx.JSON(http.StatusInternalServerError, err)
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
 		return
 	}
 	if len(result) == 0 {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"message": "Data Not Found",
-		})
+		ctx.JSON(http.StatusNotFound, helpers.NewResponse("Data user not found", nil, nil))
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Get user success",
-		"data":    result,
-	})
+	ctx.JSON(http.StatusOK, helpers.NewResponse("Successfully Get Profile user", result, nil))
 }
-
-// func (h *HandlerUser) RegisterUser(ctx *gin.Context) {
-// 	var body models.UserModel
-// 	if err := ctx.ShouldBind(&body); err != nil {
-// 		ctx.JSON(http.StatusBadRequest, gin.H{
-// 			"message": "Error in binding body register user",
-// 			"error":   err,
-// 		})
-// 		return
-// 	}
-// 	if body.Full_name == nil || body.Email == "" || body.Password == "" {
-// 		ctx.JSON(http.StatusBadRequest, gin.H{
-// 			"message": "Please fill all data",
-// 		})
-// 		return
-// 	}
-// 	res, err := h.RepositoryRegisterUser(&body)
-// 	if err != nil {
-// 		if strings.Contains(err.Error(), "users_email_key") {
-// 			ctx.JSON(http.StatusBadRequest, gin.H{
-// 				"message": "Email already used",
-// 			})
-// 			return
-// 		}
-// 		log.Fatalln(err)
-// 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-// 		return
-// 	}
-// 	ctx.JSON(http.StatusCreated, gin.H{
-// 		"message": "User created successfully",
-// 		"User":    body.Full_name,
-// 		"data":    res,
-// 	})
-// }
 
 func (h *HandlerUser) AddUser(ctx *gin.Context) {
 	var body models.UserModel
 	if err := ctx.ShouldBind(&body); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error in binding body add user",
-			"error":   err,
-		})
+		log.Println(err.Error())
+		ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Error in binding body user", nil, nil))
 		return
 	}
 	if _, err := govalidator.ValidateStruct(&body); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error in Validator",
-			"Error":   err.Error(),
-		})
+		log.Println(err.Error())
+		ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Wrong input after validation", nil, nil))
 		return
 	}
 	cld, errCloud := helpers.InitCloudinary()
 	if errCloud != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Error in initialize clodinary",
-			"error":   errCloud,
-		})
+		log.Println(errCloud.Error())
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Error in initialize upload file package", nil, nil))
 		return
 	}
 	formFile, _ := ctx.FormFile("Photo_profile")
@@ -183,73 +119,55 @@ func (h *HandlerUser) AddUser(ctx *gin.Context) {
 	}
 	hashedPassword, errHash := hs.GenHashedPassword(body.Password)
 	if errHash != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Error in hashing password",
-			"Error":   errHash.Error(),
-		})
+		log.Println(errHash.Error())
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Error in hashing password", nil, nil))
 		return
 	}
 	err := h.RepositoryAddUser(&body, hashedPassword, dataUrl)
 	if err != nil {
 		if strings.Contains(err.Error(), "users_email_key") {
-			ctx.JSON(http.StatusBadRequest, gin.H{
-				"message": "Email already used",
-			})
+			ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Email already used", nil, nil))
 			return
 		}
 		if strings.Contains(err.Error(), "users_phone_key") {
-			ctx.JSON(http.StatusBadRequest, gin.H{
-				"message": "Phone number already used",
-			})
+			ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Phone number already used", nil, nil))
 			return
 		}
 		if strings.Contains(err.Error(), "users_user_name_key") {
-			ctx.JSON(http.StatusBadRequest, gin.H{
-				"message": "Username already used",
-			})
+			ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Username already used", nil, nil))
 			return
 		}
-		log.Fatalln(err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Println(err.Error())
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
 		return
 	}
-	ctx.JSON(http.StatusCreated, gin.H{
-		"message":   "User created successfully",
-		"User_Name": body.User_name})
+	ctx.JSON(http.StatusCreated, helpers.NewResponse("User successfully created", &body, nil))
 }
 
 func (h *HandlerUser) EditUserProfile(ctx *gin.Context) {
 	var body models.UserUpdateModel
 	ID, _ := helpers.GetPayload(ctx)
 	if err := ctx.ShouldBind(&body); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error in binding body update user",
-			"error":   err.Error(),
-		})
+		ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Error in binding body update", nil, nil))
 		return
 	}
+	user_id, _ := strconv.Atoi(ctx.Param("id"))
+	if user_id != 0 {
+		ID = user_id
+	}
 	if _, err := govalidator.ValidateStruct(&body); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error in Validator Edit user",
-			"Error":   err.Error(),
-			"Body":    &body,
-		})
+		ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Wrong input after validation", nil, nil))
 		return
 	}
 	var newPassword string
 	if body.NewPassword != "" {
 		if body.LastPassword == "" {
-			ctx.JSON(http.StatusInternalServerError, gin.H{
-				"message": "Please input latest password to verify",
-			})
+			ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Please input last password to verify", nil, nil))
 			return
 		}
 		result, err := h.RepositorySensitiveDataUser(ID)
 		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{
-				"message": "Error in get password user",
-				"error":   err.Error(),
-			})
+			ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Error in get sensitive data", nil, nil))
 			return
 		}
 		hs := pkg.HashConfig{
@@ -261,27 +179,21 @@ func (h *HandlerUser) EditUserProfile(ctx *gin.Context) {
 		}
 		isValid, _ := hs.ComparePasswordAndHash(body.LastPassword, result[0].Password)
 		if !isValid {
-			ctx.JSON(http.StatusUnauthorized, gin.H{
-				"message": "Last password doesnt match",
-			})
+			ctx.JSON(http.StatusUnauthorized, helpers.NewResponse("Last password doesnt match", nil, nil))
 			return
 		}
 		hashedPassword, errHash := hs.GenHashedPassword(body.NewPassword)
 		if errHash != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{
-				"message": "Error in hashin password",
-				"error":   errHash.Error(),
-			})
+			log.Println(errHash.Error())
+			ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Error hashing password", nil, nil))
 			return
 		}
 		newPassword = hashedPassword
 	}
 	cld, err := helpers.InitCloudinary()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Error in initialize clodinary",
-			"error":   err,
-		})
+		log.Println(err.Error())
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Error in initialize uploading image system", nil, nil))
 		return
 	}
 	formFile, _ := ctx.FormFile("Photo_profile")
@@ -295,9 +207,8 @@ func (h *HandlerUser) EditUserProfile(ctx *gin.Context) {
 	if formFile != nil {
 		file, err := formFile.Open()
 		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
+			log.Println(err.Error())
+			ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Error in opening file", nil, nil))
 			return
 		}
 		defer file.Close()
@@ -305,9 +216,8 @@ func (h *HandlerUser) EditUserProfile(ctx *gin.Context) {
 		folder := ""
 		res, err := cld.Uploader(ctx, file, publicId, folder)
 		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{
-				"message": err.Error(),
-			})
+			log.Println(err.Error())
+			ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Error in upload image", nil, nil))
 			return
 		}
 		dataUrl = res.SecureURL
@@ -315,45 +225,37 @@ func (h *HandlerUser) EditUserProfile(ctx *gin.Context) {
 	fmt.Println(dataUrl)
 	result, errUpdate := h.RepositoryUpdateUser(ID, &body, dataUrl, newPassword)
 	if errUpdate != nil {
-		// log.Println(err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": errUpdate.Error()})
+		log.Println(errUpdate.Error())
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
 		return
 	}
 	if result != nil {
 		rowsAffected, _ := result.RowsAffected()
 		if rowsAffected == 0 {
-			ctx.JSON(http.StatusNotFound, gin.H{
-				"message": "Users not found",
-			})
+			ctx.JSON(http.StatusNotFound, helpers.NewResponse("User not found", nil, nil))
 			return
 		}
 	}
-	ctx.JSON(http.StatusCreated, gin.H{
-		"message": "Users successfully updated",
-	})
+	ctx.JSON(http.StatusCreated, helpers.NewResponse("Successfully update user", &body, nil))
 }
 
 func (h *HandlerUser) DeleteUser(ctx *gin.Context) {
 	ID, _ := strconv.Atoi(ctx.Param("id"))
 	result, err := h.RepositoryDeleteUser(ID)
 	if err != nil {
-		log.Print(err)
-		ctx.JSON(http.StatusInternalServerError, err)
+		log.Print(err.Error())
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
 		return
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		log.Print(err)
-		ctx.JSON(http.StatusInternalServerError, err)
+		log.Print(err.Error())
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Error rows affected", nil, nil))
 		return
 	}
 	if rowsAffected == 0 {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"message": "Product not found",
-		})
+		ctx.JSON(http.StatusNotFound, helpers.NewResponse("User not found", nil, nil))
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "User successfully deleted",
-	})
+	ctx.JSON(http.StatusOK, helpers.NewResponse(fmt.Sprintf("User with id %d successfully deleted", ID), nil, nil))
 }

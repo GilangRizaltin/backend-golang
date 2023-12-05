@@ -54,8 +54,8 @@ func (r *PromoRepository) RepositoryGetPromo(body *models.QueryParamsPromo) ([]m
 }
 
 func (r *PromoRepository) RepositoryCreatePromo(body *models.PromoModel) error {
-	query := `INSERT INTO promos (promo_code, promo_type, flat_amount, percent_amount) 
-	VALUES (:Promo_code, (select id from promos_type where promo_type_name = :Promo_type), :Flat_amount, :Percent_amount) RETURNING promo_code`
+	query := `INSERT INTO promos (promo_code, promo_type, flat_amount, percent_amount, ended_at) 
+	VALUES (:Promo_code, (select id from promos_type where promo_type_name = :Promo_type), :Flat_amount, :Percent_amount, NOW() + interval '7 days') RETURNING promo_code`
 	_, err := r.NamedExec(query, body)
 	return err
 }
@@ -70,7 +70,7 @@ func (r *PromoRepository) RepositoryUpdatePromo(productID int, body *models.Prom
 		conditional = append(conditional, "promo_code = :Promo_code")
 		params["Promo_code"] = body.Promo_code
 	}
-	if body.Ended_at != nil {
+	if body.Ended_at != "" {
 		conditional = append(conditional, "ended_at = :Ended_at")
 		params["Ended_at"] = body.Ended_at
 	}

@@ -4,7 +4,6 @@ import (
 	"Backend_Golang/internal/models"
 	"database/sql"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 
@@ -21,6 +20,10 @@ func InitializeOrderRepository(db *sqlx.DB) *OrderRepository {
 
 func (r *OrderRepository) RepositoryGetOrder(body *models.QueryParamsOrder) ([]models.OrderModel, error) {
 	data := []models.OrderModel{}
+	page := 1
+	if body.Page != 0 {
+		page = body.Page
+	}
 	query := `
 	select o.id as "No",
     u.full_name  as "User",
@@ -40,10 +43,11 @@ func (r *OrderRepository) RepositoryGetOrder(body *models.QueryParamsOrder) ([]m
     join promos p on o.promo_id = p.id
     join serve s on o.serve_id = s.id 
     join payment_type py on o.payment_type = py.id
+	where o.deleted_at is null
 	`
 	values := []any{}
 	if body.Status != "" {
-		query += ` where o.status = $` + fmt.Sprint(len(values)+1)
+		query += ` and o.status = $` + fmt.Sprint(len(values)+1)
 		values = append(values, body.Status)
 	}
 	if body.Sort != "" {
@@ -55,12 +59,17 @@ func (r *OrderRepository) RepositoryGetOrder(body *models.QueryParamsOrder) ([]m
 			query += ` asc`
 		}
 	}
-	query += " LIMIT 6 OFFSET " + strconv.Itoa((body.Page-1)*3)
-	fmt.Println(query)
+	if body.Sort == "" {
+		query += " order by o.id asc"
+	}
+	query += " LIMIT 6 OFFSET " + strconv.Itoa((page-1)*3)
+	// fmt.Println(query)
 	err := r.Select(&data, query, values...)
 	if err != nil {
+		// fmt.Println("Error in query 1")
 		return nil, err
 	}
+	return data, nil
 	// queryOrderProduct := `select
 	// op.id as "No Order",
 	// p.product_name as "Product_name",
@@ -84,14 +93,14 @@ func (r *OrderRepository) RepositoryGetOrder(body *models.QueryParamsOrder) ([]m
 	// 	order_id := data.Id
 	// 	err := r.Select(&data.Product, queryOrderProduct, order_id)
 	// 	if err != nil {
+	// 		fmt.Println("Error in query 2")
 	// 		return nil, err
 	// 	}
-	// 	return data, nil
 	// }
-	return data, nil
+	// return data, nil
 }
 
-func (r *OrderRepository) RepositoryGetOrderDetail(order_id int) ([]models.OrderDetailModel, error) {
+func (r *OrderRepository) RepositoryGetOrderDetail(order_id int, body []models.OrderModel) ([]models.OrderDetailModel, error) {
 	data := []models.OrderDetailModel{}
 	query := `select
     o.id as "No Order",
@@ -113,9 +122,21 @@ func (r *OrderRepository) RepositoryGetOrderDetail(order_id int) ([]models.Order
     where
     op.order_id = $1`
 	// fmt.Println(query)
-	err := r.Select(&data, query, order_id)
-	if err != nil {
-		return nil, err
+	if order_id != 0 {
+		err := r.Select(&data, query, order_id)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if body != nil {
+		for idx, data := range data {
+			order_id := body[idx].Id
+			err := r.Select(data, query, order_id)
+			if err != nil {
+				fmt.Println("Error in query 2")
+				return nil, err
+			}
+		}
 	}
 	return data, nil
 }
@@ -130,15 +151,37 @@ func (r *OrderRepository) RepositoryGetStatisticByStatus() ([]models.OrderDataSt
 	return data, nil
 }
 
-func (r *OrderRepository) RepositoryGetOrderList() {
-
+func (r *OrderRepository) RepositoryStatisticOrder(dateStart, dateEnd string) ([]models.StatisticOrder, error) {
+	data := []models.StatisticOrder{}
+	query := `SELECT 
+                dates::date AS "OrderDate",
+                SUM(op.quantity) AS "TotalQuantity"
+              FROM 
+                generate_series($1::timestamp, $2::timestamp, interval '1 day') dates
+              LEFT JOIN 
+                orders_products AS op
+              ON 
+                DATE(op.created_at) = dates::date
+              GROUP BY 
+                dates::date
+              ORDER BY 
+                dates::date`
+	values := []any{
+		dateStart, dateEnd,
+	}
+	err := r.Select(&data, query, values...)
+	// fmt.Println(query)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
-func (r *OrderRepository) RepositoryCreateOrder(bodyOrder *models.OrderModel, client *sqlx.Tx) (*sqlx.Rows, error) {
+func (r *OrderRepository) RepositoryCreateOrder(Id int, bodyOrder *models.OrderModel, client *sqlx.Tx) (*sqlx.Rows, error) {
 	queryOrder := `
         INSERT INTO orders(user_id, subtotal, promo_id, percent_discount, flat_discount, serve_id, fee, tax, total_transactions, payment_type, status)
         VALUES (
-            (SELECT id FROM users WHERE user_name = :User), :Subtotal, 
+            :Id, :Subtotal, 
             (SELECT id FROM promos WHERE promo_code = :Promo), 
             (SELECT flat_amount FROM promos WHERE promo_code = :Promo),
             (SELECT percent_amount FROM promos WHERE promo_code = :Promo),
@@ -151,7 +194,14 @@ func (r *OrderRepository) RepositoryCreateOrder(bodyOrder *models.OrderModel, cl
         )
         RETURNING id
     `
-	rows, err := client.NamedQuery(queryOrder, bodyOrder)
+	params := make(map[string]interface{})
+	params["Id"] = Id
+	params["Subtotal"] = bodyOrder.Subtotal
+	params["Promo"] = bodyOrder.Promo
+	params["Serve"] = bodyOrder.Serve
+	params["Total_transaction"] = bodyOrder.Total_transaction
+	params["Payment_type"] = bodyOrder.Payment_type
+	rows, err := client.NamedQuery(queryOrder, params)
 	if err != nil {
 		return nil, err
 	}
@@ -280,16 +330,15 @@ func (r *OrderRepository) RepositoryCountOrder(body *models.QueryParamsOrder) ([
 			COUNT(*) AS "Total_order"
 		FROM
 			orders o `
-	var values string
-	if body.Status != "" {
-		values = body.Status
-	}
+	values := []any{}
 	if body.Status != "" {
 		query += ` where o.status = $1`
+		values = append(values, body.Status)
 	}
-	err := r.Select(&total_data, query, values)
+	err := r.Select(&total_data, query, values...)
 	if err != nil {
-		log.Fatalln(err)
+		// log.Fatalln(err)
+		// log.Println(err.Error())
 		return nil, err
 	}
 	return total_data, nil

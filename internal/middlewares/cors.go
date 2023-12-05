@@ -7,7 +7,7 @@ import (
 )
 
 func CORSMiddleware(ctx *gin.Context) {
-	whitelistOrigin := []string{"http://127.0.0.1:5500"}
+	whitelistOrigin := []string{"http://localhost:5173"}
 	origin := ctx.GetHeader("Origin")
 	for _, worigin := range whitelistOrigin {
 		if origin == worigin {
@@ -16,7 +16,7 @@ func CORSMiddleware(ctx *gin.Context) {
 		}
 	}
 	ctx.Header("Access-Control-Allow-Methods", "GET, POST, HEAD, PATCH, PUT, DELETE, OPTIONS")
-	ctx.Header("Access-Control-Allow-Headers", "Authorization")
+	ctx.Header("Access-Control-Allow-Headers", "*")
 
 	// handle preflight
 	if ctx.Request.Method == "OPTIONS" {

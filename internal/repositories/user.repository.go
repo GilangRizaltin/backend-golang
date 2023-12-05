@@ -32,6 +32,7 @@ func (r *UserRepository) RepositoryGetUser(body *models.QueryParamsUser) ([]mode
 	u.user_type as "User_type",
 	u.otp as "Otp"
 	from users u
+	WHERE u.deleted_at is null 
 	`
 	var conditional []string
 	values := []any{}
@@ -55,13 +56,30 @@ func (r *UserRepository) RepositoryGetUser(body *models.QueryParamsUser) ([]mode
 		conditional = append(conditional, "u.phone ILIKE $"+fmt.Sprint(len(values)+1))
 		values = append(values, "%"+body.Phone+"%")
 	}
-	if len(conditional) > 0 {
-		query += " WHERE " + strings.Join(conditional, " AND ")
+	if len(conditional) == 1 {
+		query += fmt.Sprintf(" AND %s", conditional[0])
+	}
+	if len(conditional) > 1 {
+		query += fmt.Sprintf(" AND %s", strings.Join(conditional, " AND "))
 	}
 	if body.SortOrder != "" {
-		query += " ORDER BY u.id " + body.SortOrder
+		if body.SortOrder == "asc" {
+			query += " ORDER BY u.full_name asc"
+		}
+		if body.SortOrder == "desc" {
+			query += " ORDER BY u.full_name desc"
+		}
 	}
-	query += " LIMIT 6 OFFSET " + strconv.Itoa((body.Page-1)*3)
+	if body.SortOrder == "" {
+		query += " ORDER BY u.id asc"
+	}
+	var page = body.Page
+	if body.Page == 0 {
+		page = 1
+	}
+	query += " LIMIT 6 OFFSET " + strconv.Itoa((page-1)*6)
+	// fmt.Println(body.SortOrder)
+	// fmt.Println(query)
 	err := r.Select(&data, query, values...)
 	if err != nil {
 		return nil, err
@@ -80,6 +98,7 @@ func (r *UserRepository) RepositoryGetUserProfile(ID int) ([]models.UserModel, e
 	u.address as "Address",
 	u.email as "Email",
 	u.user_type as "User_type",
+	u.created_at as "created_at",
 	u.otp as "Otp"
 	from users u
 	where u.id = $1`
@@ -203,8 +222,8 @@ func (r *UserRepository) RepositoryDeleteUser(userID int) (sql.Result, error) {
 	return result, err
 }
 
-func (r *UserRepository) RepositoryCountUser(body *models.QueryParamsUser) (int, error) {
-	var totalData int
+func (r *UserRepository) RepositoryCountUser(body *models.QueryParamsUser) ([]int, error) {
+	var totalData = []int{}
 	query := `
 		SELECT
 			COUNT(*) AS "Total_user"
@@ -236,10 +255,10 @@ func (r *UserRepository) RepositoryCountUser(body *models.QueryParamsUser) (int,
 		query += " WHERE " + strings.Join(conditional, " AND ")
 	}
 	// fmt.Println(query)
-	err := r.Get(&totalData, query, values...)
+	err := r.Select(&totalData, query, values...)
 	if err != nil {
-		log.Fatalln(err)
-		return 0, err
+		log.Println(err)
+		return nil, err
 	}
 	return totalData, nil
 }

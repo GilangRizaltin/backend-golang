@@ -18,10 +18,10 @@ type ProductModel struct {
 
 type QueryParamsProduct struct {
 	ProductId       int    `form:"id" json:"id" valid:"numeric,optional"`
-	ProductName     string `form:"product" json:"search" valid:"alpha,optional"`
-	MaximumPrice    int    `form:"max_price" json:"max_price" valid:"numeric,optional"`
-	MinimumPrice    int    `form:"min_price" json:"min_price" valid:"numeric,optional"`
-	ProductCategory string `form:"product_category" json:"product_category" valid:"in(Coffee|Non - Coffee|Food), optional"`
+	ProductName     string `form:"search" json:"search" valid:"-"`
+	MaximumPrice    int    `form:"maxprice" json:"maxprice" valid:"numeric,optional"`
+	MinimumPrice    int    `form:"minprice" json:"minprice" valid:"numeric,optional"`
+	ProductCategory string `form:"category" json:"category" valid:"in(Coffee|Non - Coffee|Food), optional"`
 	Sort            string `form:"sort" json:"sort" valid:"in(Cheapest|Most Expensive|New Product|Oldest), optional"`
 	Page            int    `form:"page" json:"page" valid:"numeric, optional"`
 }
@@ -34,14 +34,9 @@ type UpdateProduct struct {
 	Description   string `form:"Description" json:"Description" valid:"optional"`
 }
 
-type StatisticProduct struct {
-	OrderDate     *time.Time  `db:"OrderDate" json:"OrderDate"`
-	TotalQuantity interface{} `db:"TotalQuantity" json:"TotalQuantity"`
-}
-
 type PopularProduct struct {
-	Product_Id int `db:"Id" form:"Id" json:"Id" valid:"optional"`
-	// Product_name  string      `db:"Product" form:"Product" json:"Product" valid:"optional"`
+	Product_Id    int         `db:"Id" form:"Id" json:"Id" valid:"optional"`
+	Product_name  string      `db:"Product" form:"Product" json:"Product" valid:"optional"`
 	TotalQuantity interface{} `db:"Total_Quantity" json:"Total_Quantity"`
 	Total_Income  interface{} `db:"Total_Income" json:"Total_Income"`
 }

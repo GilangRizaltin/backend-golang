@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"Backend_Golang/internal/helpers"
 	"Backend_Golang/internal/models"
 	"Backend_Golang/internal/repositories"
 	"Backend_Golang/pkg"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -74,40 +76,34 @@ func (h *HandlerAuth) Register(ctx *gin.Context) {
 func (h *HandlerAuth) Login(ctx *gin.Context) {
 	body := &models.AuthLogin{}
 	if err := ctx.ShouldBind(body); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Error in binding body login",
-			"Error":   err,
-		})
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Error in binding body login", nil, nil))
+		log.Println(err.Error())
 		return
 	}
 	if _, err := govalidator.ValidateStruct(body); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error in validate body login",
-			"Error":   err,
-		})
+		ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Wrong input after validation", nil, nil))
+		log.Println(err.Error())
 		return
 	}
 	result, err := h.RepositorySelectPrivateData(body)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, err)
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error in Private data", nil, nil))
+		log.Println(err.Error())
 		return
 	}
 	if len(result) == 0 {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"message": "Account not found",
-		})
+		ctx.JSON(http.StatusNotFound, helpers.NewResponse("Account not found", nil, nil))
 		return
 	}
 	hs := pkg.HashConfig{}
 	isValid, err := hs.ComparePasswordAndHash(body.Password, result[0].Password)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, err.Error())
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Error during verification data", nil, nil))
+		log.Println(err.Error())
 		return
 	}
 	if !isValid {
-		ctx.JSON(http.StatusUnauthorized, gin.H{
-			"message": "Email or Password is wrong",
-		})
+		ctx.JSON(http.StatusUnauthorized, helpers.NewResponse("Email or password is wrong", nil, nil))
 		return
 	}
 	payload := pkg.NewPayload(result[0].Id, result[0].User_type)
@@ -116,17 +112,13 @@ func (h *HandlerAuth) Login(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, err.Error())
 		return
 	}
-	message := fmt.Sprintf("Selamat Datang %s", *result[0].Full_name)
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": message,
-		"data": gin.H{
-			"token": token,
-			"userInfo": gin.H{
-				"email":    body.Email,
-				"username": result[0].Full_name,
-			},
-		},
-	})
+	userInfo := make(map[string]interface{})
+	userInfo["token"] = token
+	userInfo["email"] = body.Email
+	userInfo["fullname"] = result[0].Full_name
+	userInfo["type"] = result[0].User_type
+	userInfo["photo_profile"] = result[0].Photo_profile
+	ctx.JSON(http.StatusOK, helpers.NewResponse(fmt.Sprintf("Welcome %p", body.Full_name), userInfo, nil))
 }
 
 func (h *HandlerAuth) Logout(ctx *gin.Context) {

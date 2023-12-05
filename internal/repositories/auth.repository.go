@@ -31,6 +31,7 @@ func (r *AuthRepository) RepositorySelectPrivateData(body *models.AuthLogin) ([]
 	data := []models.Auth{}
 	query := `select u.id as "No",
 	u.full_name as "Full_name",
+	u.user_photo_profile as "Photo_profile",
 	u.password_user as "Password",
 	u.user_type as "User_type",
 	u.otp as "Otp"

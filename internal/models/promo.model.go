@@ -9,7 +9,8 @@ type PromoModel struct {
 	Flat_amount    int        `db:"Flat_amount" form:"Flat_amount" json:"Flat_amount" valid:"numeric,optional"`
 	Percent_amount float64    `db:"Percent_amount" form:"Percent_amount" json:"Percent_amount" valid:"float,optional"`
 	Created_at     *time.Time `db:"Time_created" valid:"-"`
-	Ended_at       *time.Time `db:"Ended_at" form:"Ended_at" json:"Ended_at" valid:"-"`
+	Ended_at       string     `db:"Ended_at" form:"Ended_at" json:"Ended_at" valid:"-"`
+	Duration       int        `db:"Duration" form:"Duration" json:"Duration" valid:"-"`
 }
 
 type QueryParamsPromo struct {

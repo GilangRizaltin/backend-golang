@@ -10,7 +10,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func JWTGate(db *sqlx.DB, allowedRole ...string) gin.HandlerFunc {
+func JWTGate(authRepo *repositories.AuthRepository, db *sqlx.DB, allowedRole ...string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		bearerToken := ctx.GetHeader("Authorization")
 		if bearerToken == "" {
@@ -27,7 +27,6 @@ func JWTGate(db *sqlx.DB, allowedRole ...string) gin.HandlerFunc {
 		}
 
 		token := strings.Replace(bearerToken, "Bearer ", "", -1)
-		authRepo := repositories.InitializeAuthRepository(db)
 		result, err := authRepo.RepositoryIsTokenBlacklisted(token)
 		if err != nil {
 			ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
