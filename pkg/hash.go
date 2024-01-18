@@ -19,6 +19,20 @@ type HashConfig struct {
 	SaltLen uint32
 }
 
+func InitHashConfig() *HashConfig {
+	return &HashConfig{}
+}
+
+func (h *HashConfig) UseDefaultConfig() *HashConfig {
+	return &HashConfig{
+		Time:    3,
+		Memory:  64 * 1024,
+		Threads: 2,
+		KeyLen:  32,
+		SaltLen: 16,
+	}
+}
+
 func (h *HashConfig) genSalt() ([]byte, error) {
 	b := make([]byte, h.SaltLen)
 	if _, err := rand.Read(b); err != nil {

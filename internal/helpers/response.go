@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,23 +17,23 @@ type Response struct {
 
 type Meta struct {
 	Page      int    `json:"page,omitempty"`
-	NoPage    string `json:"no_page,omitempty"`
 	NextPage  string `json:"next,omitempty"`
 	PrevPage  string `json:"prev,omitempty"`
 	TotalData int    `json:"total_data,omitempty"`
 	TotalPage int    `json:"total_page,omitempty"`
 }
 
-func GetPagination(ctx *gin.Context, totalData []int, page int) Meta {
+func GetPagination(ctx *gin.Context, totalData []int, page int, limit float64) Meta {
 	var nextPage, prevPage string
-	url := fmt.Sprintf("%s%s", ctx.Request.Host, ctx.Request.URL.RequestURI())
+	urlFull := fmt.Sprintf("%s%s", ctx.Request.Host, ctx.Request.URL.RequestURI())
+	url := strings.Split(urlFull, "?")[1]
 	pages := 1
 	if page != 0 {
 		pages = page
 	}
 	nextPage = url[:len(url)-1] + strconv.Itoa(page+1)
 	prevPage = url[:len(url)-1] + strconv.Itoa(page-1)
-	lastPage := int(math.Ceil(float64(totalData[0]) / 6))
+	lastPage := int(math.Ceil(float64(totalData[0]) / limit))
 	if page == 0 {
 		nextPage = fmt.Sprintf("%s&page=%d", url, pages+1)
 		prevPage = "null"
@@ -48,7 +49,6 @@ func GetPagination(ctx *gin.Context, totalData []int, page int) Meta {
 	}
 	return Meta{
 		Page:      pages,
-		NoPage:    url[:len(url)-1],
 		NextPage:  nextPage,
 		PrevPage:  prevPage,
 		TotalPage: lastPage,

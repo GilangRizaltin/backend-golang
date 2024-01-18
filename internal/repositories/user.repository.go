@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"Backend_Golang/internal/models"
-	"database/sql"
 	"fmt"
 	"log"
 	"strconv"
@@ -17,6 +16,17 @@ type UserRepository struct {
 
 func InitializeUserRepository(db *sqlx.DB) *UserRepository {
 	return &UserRepository{db}
+}
+
+type IUserRepository interface {
+	RepositoryGetUser(body *models.QueryParamsUser) ([]models.UserModel, error)
+	RepositoryGetUserProfile(ID int) ([]models.UserModel, error)
+	RepositorySensitiveDataUser(ID int) ([]models.UserModel, error)
+	RepositoryAddUser(body *models.UserModel, hashedPassword, url string) error
+	RepositoryUpdateUser(productID int, body *models.UserUpdateModel, url, hashedPassword string) (int64, error)
+	RepositoryUpdatePasswordUser(userID int, hashedPassword string) error
+	RepositoryDeleteUser(userID int) (int64, error)
+	RepositoryCountUser(body *models.QueryParamsUser) ([]int, error)
 }
 
 func (r *UserRepository) RepositoryGetUser(body *models.QueryParamsUser) ([]models.UserModel, error) {
@@ -153,7 +163,7 @@ func (r *UserRepository) RepositoryAddUser(body *models.UserModel, hashedPasswor
 	return err
 }
 
-func (r *UserRepository) RepositoryUpdateUser(productID int, body *models.UserUpdateModel, url, hashedPassword string) (sql.Result, error) {
+func (r *UserRepository) RepositoryUpdateUser(productID int, body *models.UserUpdateModel, url, hashedPassword string) (int64, error) {
 	var conditional []string
 	query := `
         UPDATE users
@@ -163,11 +173,11 @@ func (r *UserRepository) RepositoryUpdateUser(productID int, body *models.UserUp
 		conditional = append(conditional, "user_photo_profile = :Url")
 		params["Url"] = url
 	}
-	if body.User_name != nil {
+	if body.User_name != "" {
 		conditional = append(conditional, "user_name = :User_name")
 		params["User_name"] = body.User_name
 	}
-	if body.Full_name != nil {
+	if body.Full_name != "" {
 		conditional = append(conditional, "full_name = :Full_name")
 		params["Full_name"] = body.Full_name
 	}
@@ -197,7 +207,11 @@ func (r *UserRepository) RepositoryUpdateUser(productID int, body *models.UserUp
 	query += ` ,update_at = NOW() WHERE id = :Id`
 	fmt.Println(query)
 	result, err := r.NamedExec(query, params)
-	return result, err
+	if err != nil {
+		return 0, err
+	}
+	rows, _ := result.RowsAffected()
+	return rows, nil
 }
 
 func (r *UserRepository) RepositoryUpdatePasswordUser(userID int, hashedPassword string) error {
@@ -210,7 +224,7 @@ func (r *UserRepository) RepositoryUpdatePasswordUser(userID int, hashedPassword
 	return nil
 }
 
-func (r *UserRepository) RepositoryDeleteUser(userID int) (sql.Result, error) {
+func (r *UserRepository) RepositoryDeleteUser(userID int) (int64, error) {
 	query := `
         update users
         set 
@@ -219,7 +233,11 @@ func (r *UserRepository) RepositoryDeleteUser(userID int) (sql.Result, error) {
 		returning full_name;
     `
 	result, err := r.Exec(query, userID)
-	return result, err
+	if err != nil {
+		return 0, err
+	}
+	rows, _ := result.RowsAffected()
+	return rows, nil
 }
 
 func (r *UserRepository) RepositoryCountUser(body *models.QueryParamsUser) ([]int, error) {

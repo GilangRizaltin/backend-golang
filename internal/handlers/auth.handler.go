@@ -14,16 +14,20 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// type HandlerAuth struct {
+// 	*repositories.AuthRepository
+// }
+
 type HandlerAuth struct {
-	*repositories.AuthRepository
+	repositories.IAuthRepository
 }
 
-func InitializeAuthHandler(r *repositories.AuthRepository) *HandlerAuth {
+func InitializeAuthHandler(r repositories.IAuthRepository) *HandlerAuth {
 	return &HandlerAuth{r}
 }
 
 func (h *HandlerAuth) Register(ctx *gin.Context) {
-	body := &models.Auth{}
+	body := &models.AuthRegister{}
 	if err := ctx.ShouldBind(body); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"message": "Error in binding body login",
@@ -32,10 +36,8 @@ func (h *HandlerAuth) Register(ctx *gin.Context) {
 		return
 	}
 	if _, err := govalidator.ValidateStruct(body); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"message": "Error in validate body login",
-			"Error":   err,
-		})
+		log.Println(err.Error())
+		ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Wrong input after validation", nil, nil))
 		return
 	}
 	hs := pkg.HashConfig{
@@ -47,30 +49,20 @@ func (h *HandlerAuth) Register(ctx *gin.Context) {
 	}
 	hashedPassword, err := hs.GenHashedPassword(body.Password)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Error in hashing password",
-			"Error":   err,
-		})
+		log.Println(err.Error())
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Error in hashing password", nil, nil))
 		return
 	}
 	err = h.RepositoryRegister(body, hashedPassword)
 	if err != nil {
 		if strings.Contains(err.Error(), "users_email_key") {
-			ctx.JSON(http.StatusBadRequest, gin.H{
-				"message": "Email already used",
-			})
+			ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Email already used", nil, nil))
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
 		return
 	}
-	ctx.JSON(http.StatusCreated, gin.H{
-		"message": "User berhasil register",
-		"data": gin.H{
-			"username": body.Full_name,
-			"email":    body.Email,
-		},
-	})
+	ctx.JSON(http.StatusCreated, helpers.NewResponse("Successfully register user", nil, nil))
 }
 
 func (h *HandlerAuth) Login(ctx *gin.Context) {
@@ -109,7 +101,7 @@ func (h *HandlerAuth) Login(ctx *gin.Context) {
 	payload := pkg.NewPayload(result[0].Id, result[0].User_type)
 	token, err := payload.GenerateToken()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, err.Error())
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Error Generating token", nil, nil))
 		return
 	}
 	userInfo := make(map[string]interface{})
@@ -118,20 +110,15 @@ func (h *HandlerAuth) Login(ctx *gin.Context) {
 	userInfo["fullname"] = result[0].Full_name
 	userInfo["type"] = result[0].User_type
 	userInfo["photo_profile"] = result[0].Photo_profile
-	ctx.JSON(http.StatusOK, helpers.NewResponse(fmt.Sprintf("Welcome %p", body.Full_name), userInfo, nil))
+	ctx.JSON(http.StatusOK, helpers.NewResponse(fmt.Sprintf("Welcome %s", *result[0].Full_name), userInfo, nil))
 }
 
 func (h *HandlerAuth) Logout(ctx *gin.Context) {
 	bearerToken := ctx.GetHeader("Authorization")
 	token := strings.Replace(bearerToken, "Bearer ", "", -1)
 	if err := h.RepositoryLogout(token); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Error in logout",
-			"err":     err.Error(),
-		})
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Successfully Logout",
-	})
+	ctx.JSON(http.StatusOK, helpers.NewResponse("Successfully logout. Thank you", nil, nil))
 }

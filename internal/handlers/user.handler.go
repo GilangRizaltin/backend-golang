@@ -16,10 +16,10 @@ import (
 )
 
 type HandlerUser struct {
-	*repositories.UserRepository
+	repositories.IUserRepository
 }
 
-func InitializeUserHandler(r *repositories.UserRepository) *HandlerUser {
+func InitializeUserHandler(r repositories.IUserRepository) *HandlerUser {
 	return &HandlerUser{r}
 }
 
@@ -34,6 +34,13 @@ func (h *HandlerUser) GetUser(ctx *gin.Context) {
 		log.Println(err.Error())
 		return
 	}
+	// if query.Fullname != "" {
+	// 	isValid := helpers.ValidateInput(query.Fullname)
+	// 	if !isValid {
+	// 		ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Wrong input for product name", nil, nil))
+	// 		return
+	// 	}
+	// }
 	result, err := h.RepositoryGetUser(&query)
 	data, _ := h.RepositoryCountUser(&query)
 	if err != nil {
@@ -49,7 +56,7 @@ func (h *HandlerUser) GetUser(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotFound, helpers.NewResponse("Data not found", nil, nil))
 		return
 	}
-	meta := helpers.GetPagination(ctx, data, query.Page)
+	meta := helpers.GetPagination(ctx, data, query.Page, 6)
 	ctx.JSON(http.StatusOK, helpers.NewResponse("Successfully Get User", result, &meta))
 }
 
@@ -146,11 +153,12 @@ func (h *HandlerUser) AddUser(ctx *gin.Context) {
 
 func (h *HandlerUser) EditUserProfile(ctx *gin.Context) {
 	var body models.UserUpdateModel
-	ID, _ := helpers.GetPayload(ctx)
-	if err := ctx.ShouldBind(&body); err != nil {
+	err := ctx.ShouldBind(&body)
+	if err != nil {
 		ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Error in binding body update", nil, nil))
 		return
 	}
+	ID, _ := helpers.GetPayload(ctx)
 	user_id, _ := strconv.Atoi(ctx.Param("id"))
 	if user_id != 0 {
 		ID = user_id
@@ -159,6 +167,13 @@ func (h *HandlerUser) EditUserProfile(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Wrong input after validation", nil, nil))
 		return
 	}
+	// if body.Full_name != "" {
+	// 	isValid := helpers.ValidateInput(body.Full_name)
+	// 	if !isValid {
+	// 		ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Wrong input for product name", nil, nil))
+	// 		return
+	// 	}
+	// }
 	var newPassword string
 	if body.NewPassword != "" {
 		if body.LastPassword == "" {
@@ -229,14 +244,12 @@ func (h *HandlerUser) EditUserProfile(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
 		return
 	}
-	if result != nil {
-		rowsAffected, _ := result.RowsAffected()
-		if rowsAffected == 0 {
-			ctx.JSON(http.StatusNotFound, helpers.NewResponse("User not found", nil, nil))
-			return
-		}
+	var data int64 = 1
+	if result < data {
+		ctx.JSON(http.StatusNotFound, helpers.NewResponse("User not found", nil, nil))
+		return
 	}
-	ctx.JSON(http.StatusCreated, helpers.NewResponse("Successfully update user", &body, nil))
+	ctx.JSON(http.StatusOK, helpers.NewResponse("Successfully update user", &body, nil))
 }
 
 func (h *HandlerUser) DeleteUser(ctx *gin.Context) {
@@ -247,13 +260,13 @@ func (h *HandlerUser) DeleteUser(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
 		return
 	}
-	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		log.Print(err.Error())
 		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Error rows affected", nil, nil))
 		return
 	}
-	if rowsAffected == 0 {
+	var data int64 = 1
+	if result < data {
 		ctx.JSON(http.StatusNotFound, helpers.NewResponse("User not found", nil, nil))
 		return
 	}

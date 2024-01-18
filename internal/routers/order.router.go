@@ -18,6 +18,7 @@ func RouterOrder(authRepo *repositories.AuthRepository, g *gin.Engine, db *sqlx.
 	route.GET("/statistic", middlewares.JWTGate(authRepo, db, "Admin"), handler.GetOrderStatisticByStatus)
 	route.GET("/:order_id", middlewares.JWTGate(authRepo, db, "Admin"), handler.GetOrderOnDetail)
 	route.POST("", middlewares.JWTGate(authRepo, db, "Admin", "Normal User"), handler.CreateOrder)
+	route.POST("/token", middlewares.JWTGate(authRepo, db, "Admin", "Normal User"), handler.GenerateMidtransToken)
 	route.PATCH("/:id", middlewares.JWTGate(authRepo, db, "Admin"), handler.UpdateOrder)
 	// route.PATCH("/:order_product_id", handler.UpdateOrderDetail)
 	route.DELETE("/:order_id", middlewares.JWTGate(authRepo, db, "Admin"), handler.DeleteOrder)

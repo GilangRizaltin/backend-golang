@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"Backend_Golang/internal/models"
-	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
@@ -16,6 +15,14 @@ type PromoRepository struct {
 
 func InitializePromoRepository(db *sqlx.DB) *PromoRepository {
 	return &PromoRepository{db}
+}
+
+type IPromoRepository interface {
+	RepositoryGetPromo(body *models.QueryParamsPromo) ([]models.PromoModel, error)
+	RepositoryCreatePromo(body *models.PromoModel) error
+	RepositoryUpdatePromo(productID int, body *models.UpdatePromoModel) (int64, error)
+	RepositoryDeletePromo(productID int) (int64, error)
+	RepositoryCountPromo(body *models.QueryParamsPromo) ([]int, error)
 }
 
 func (r *PromoRepository) RepositoryGetPromo(body *models.QueryParamsPromo) ([]models.PromoModel, error) {
@@ -60,7 +67,7 @@ func (r *PromoRepository) RepositoryCreatePromo(body *models.PromoModel) error {
 	return err
 }
 
-func (r *PromoRepository) RepositoryUpdatePromo(productID int, body *models.PromoModel) error {
+func (r *PromoRepository) RepositoryUpdatePromo(productID int, body *models.UpdatePromoModel) (int64, error) {
 	var conditional []string
 	query := `
         UPDATE promos
@@ -82,17 +89,22 @@ func (r *PromoRepository) RepositoryUpdatePromo(productID int, body *models.Prom
 	}
 	params["Id"] = productID
 	query += ` update_at = NOW() WHERE id = :Id`
-	_, err := r.NamedExec(query, params)
+	result, err := r.NamedExec(query, params)
 	// fmt.Println(query)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	rowsAffected, _ := result.RowsAffected()
+	return rowsAffected, nil
 }
 
-func (r *PromoRepository) RepositoryDeletePromo(productID int) (sql.Result, error) {
+func (r *PromoRepository) RepositoryDeletePromo(productID int) (int64, error) {
 	query := `
 	update products set deleted_at = now() where id = $1;
 	`
 	result, err := r.Exec(query, productID)
-	return result, err
+	rowsAffected, _ := result.RowsAffected()
+	return rowsAffected, err
 }
 
 func (r *PromoRepository) RepositoryCountPromo(body *models.QueryParamsPromo) ([]int, error) {

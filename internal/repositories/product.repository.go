@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"Backend_Golang/internal/models"
-	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
@@ -12,6 +11,17 @@ import (
 
 type ProductRepository struct {
 	*sqlx.DB
+}
+
+type IProductRepository interface {
+	RepositoryGet(body *models.QueryParamsProduct) ([]models.ProductModel, error)
+	RepositoryGetDetail(ID int) ([]models.ProductModel, error)
+	RepositoryCreateProduct(body *models.ProductModel, dataUrl []string) error
+	RepositoryUpdateProduct(productID int, body *models.UpdateProduct, dataUrl []string) (int64, error)
+	RepositoryDeleteProduct(productID int) (int64, error)
+	RepositoryCountProduct(body *models.QueryParamsProduct) ([]int, error)
+	RepositoryStatisticProduct(dateStart, dateEnd, conditions string) ([]models.PopularProduct, error)
+	RepositoryFavouriteProduct(dataPopular []models.PopularProduct) ([]models.ProductModel, error)
 }
 
 func InitializeRepository(db *sqlx.DB) *ProductRepository {
@@ -145,7 +155,7 @@ func (r *ProductRepository) RepositoryCreateProduct(body *models.ProductModel, d
 	return err
 }
 
-func (r *ProductRepository) RepositoryUpdateProduct(productID int, body *models.UpdateProduct, dataUrl []string) (sql.Result, error) {
+func (r *ProductRepository) RepositoryUpdateProduct(productID int, body *models.UpdateProduct, dataUrl []string) (int64, error) {
 	var conditional []string
 	query := `
         UPDATE products
@@ -178,19 +188,19 @@ func (r *ProductRepository) RepositoryUpdateProduct(productID int, body *models.
 		query += strings.Join(conditional, ", ") + ", "
 	}
 	params["Id"] = productID
-	// fmt.Println(params)
 	query += ` update_at = NOW() WHERE id = :Id`
 	result, err := r.NamedExec(query, params)
-	// fmt.Println(query)
-	return result, err
+	rowsAffected, _ := result.RowsAffected()
+	return rowsAffected, err
 }
 
-func (r *ProductRepository) RepositoryDeleteProduct(productID int) (sql.Result, error) {
+func (r *ProductRepository) RepositoryDeleteProduct(productID int) (int64, error) {
 	query := `
         update products set deleted_at = now() where id = $1;
     `
 	result, err := r.Exec(query, productID)
-	return result, err
+	rowsAffected, _ := result.RowsAffected()
+	return rowsAffected, err
 }
 
 func (r *ProductRepository) RepositoryCountProduct(body *models.QueryParamsProduct) ([]int, error) {

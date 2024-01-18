@@ -2,8 +2,8 @@ package repositories
 
 import (
 	"Backend_Golang/internal/models"
-	"database/sql"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
@@ -16,6 +16,19 @@ type OrderRepository struct {
 
 func InitializeOrderRepository(db *sqlx.DB) *OrderRepository {
 	return &OrderRepository{db}
+}
+
+type IOrderRepository interface {
+	RepositoryGetOrder(body *models.QueryParamsOrder) ([]models.OrderModel, error)
+	RepositoryGetOrderDetail(order_id int, body []models.OrderModel) ([]models.OrderDetailModel, error)
+	RepositoryGetStatisticByStatus() ([]models.OrderDataStatus, error)
+	RepositoryStatisticOrder(dateStart, dateEnd string) ([]models.StatisticOrder, error)
+	RepositoryCreateOrder(Id int, bodyOrder *models.CreateOrderModel, client *sqlx.Tx) (string, error)
+	RepositoryCreateOrderProduct(bodyOrder *models.CreateOrderModel, client *sqlx.Tx, orderId string) error
+	RepositoryUpdateOrder(ID int, body *models.UpdateOrderDataStatus) (int64, error)
+	RepositoryDeleteOrder(ID int) (int64, error)
+	RepositoryCountOrder(body *models.QueryParamsOrder) ([]int, error)
+	Begin() (*sqlx.Tx, error)
 }
 
 func (r *OrderRepository) RepositoryGetOrder(body *models.QueryParamsOrder) ([]models.OrderModel, error) {
@@ -36,12 +49,15 @@ func (r *OrderRepository) RepositoryGetOrder(body *models.QueryParamsOrder) ([]m
     o.tax as "Tax",
     o.total_transactions as "Total_transaction",
     py.payment_name as "Payment_type",
+	COALESCE(STRING_AGG(p2.product_name, ', '), 'No data product') as "Product_list",
     o.status as "Status",
     o.created_at as "Date"
-    from orders o
+    from orders_products op
+    join orders o on op.order_id = o.id
     join users u on o.user_id = u.id
     join promos p on o.promo_id = p.id
     join serve s on o.serve_id = s.id 
+    join products p2 on op.product_id = p2.id
     join payment_type py on o.payment_type = py.id
 	where o.deleted_at is null
 	`
@@ -51,7 +67,8 @@ func (r *OrderRepository) RepositoryGetOrder(body *models.QueryParamsOrder) ([]m
 		values = append(values, body.Status)
 	}
 	if body.Sort != "" {
-		query += ` order by o.created_at`
+		query += ` GROUP by o.id, u.full_name, o.subtotal, p.promo_code, o.percent_discount, o.flat_discount, s.serve_type, o.fee, o.tax, o.total_transactions, py.payment_name, o.status, o.created_at 
+		order by o.created_at`
 		if body.Sort == "Newest" {
 			query += ` desc`
 		}
@@ -60,7 +77,8 @@ func (r *OrderRepository) RepositoryGetOrder(body *models.QueryParamsOrder) ([]m
 		}
 	}
 	if body.Sort == "" {
-		query += " order by o.id asc"
+		query += ` GROUP by o.id, u.full_name, o.subtotal, p.promo_code, o.percent_discount, o.flat_discount, s.serve_type, o.fee, o.tax, o.total_transactions, py.payment_name, o.status, o.created_at
+		 order by o.id asc`
 	}
 	query += " LIMIT 6 OFFSET " + strconv.Itoa((page-1)*3)
 	// fmt.Println(query)
@@ -70,35 +88,10 @@ func (r *OrderRepository) RepositoryGetOrder(body *models.QueryParamsOrder) ([]m
 		return nil, err
 	}
 	return data, nil
-	// queryOrderProduct := `select
-	// op.id as "No Order",
-	// p.product_name as "Product_name",
-	// op.hot_or_not as "Hot_or_not",
-	// s.size_name as "Size",
-	// op.price as "Price",
-	// op.quantity as "Quantity"
-	// from
-	// orders_products op
-	// inner join
-	// orders o ON op.order_id = o.id
-	// inner join
-	// users u ON o.user_id = u.id
-	// join
-	// products p ON op.product_id = p.id
-	// join
-	// sizes s ON op.size_id = s.id
-	// where
-	// o.id = $1`
-	// for _, data := range data {
-	// 	order_id := data.Id
-	// 	err := r.Select(&data.Product, queryOrderProduct, order_id)
-	// 	if err != nil {
-	// 		fmt.Println("Error in query 2")
-	// 		return nil, err
-	// 	}
-	// }
-	// return data, nil
 }
+
+// func (r *OrderRepository) RepositoryGetOrderProduct(body *models.QueryParamsOrder) ([]models.OrderModel, error) {
+// }
 
 func (r *OrderRepository) RepositoryGetOrderDetail(order_id int, body []models.OrderModel) ([]models.OrderDetailModel, error) {
 	data := []models.OrderDetailModel{}
@@ -177,7 +170,7 @@ func (r *OrderRepository) RepositoryStatisticOrder(dateStart, dateEnd string) ([
 	return data, nil
 }
 
-func (r *OrderRepository) RepositoryCreateOrder(Id int, bodyOrder *models.OrderModel, client *sqlx.Tx) (*sqlx.Rows, error) {
+func (r *OrderRepository) RepositoryCreateOrder(Id int, bodyOrder *models.CreateOrderModel, client *sqlx.Tx) (string, error) {
 	queryOrder := `
         INSERT INTO orders(user_id, subtotal, promo_id, percent_discount, flat_discount, serve_id, fee, tax, total_transactions, payment_type, status)
         VALUES (
@@ -203,12 +196,26 @@ func (r *OrderRepository) RepositoryCreateOrder(Id int, bodyOrder *models.OrderM
 	params["Payment_type"] = bodyOrder.Payment_type
 	rows, err := client.NamedQuery(queryOrder, params)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return rows, nil
+	var Id_Order string
+	var orderId string
+	for rows.Next() {
+		err = rows.Scan(&Id_Order)
+		if err != nil {
+			return "", nil
+		}
+		if Id_Order != "" {
+			log.Println(Id)
+			orderId = Id_Order
+			break
+		}
+	}
+	defer rows.Close()
+	return orderId, nil
 }
 
-func (r *OrderRepository) RepositoryCreateOrderProduct(bodyOrder *models.OrderModel, client *sqlx.Tx, orderId string) (*sqlx.Rows, error) {
+func (r *OrderRepository) RepositoryCreateOrderProduct(bodyOrder *models.CreateOrderModel, client *sqlx.Tx, orderId string) error {
 	queryOrder := `
 	INSERT INTO orders_products (order_id, product_id, hot_or_not, size_id, price, quantity, subtotal)
 		VALUES `
@@ -242,25 +249,28 @@ func (r *OrderRepository) RepositoryCreateOrderProduct(bodyOrder *models.OrderMo
 	if len(filteredBody) > 0 {
 		queryOrder += strings.Join(filteredBody, ", ")
 	}
-	// fmt.Println(queryOrder)
 	rows, err := client.NamedQuery(queryOrder, filterBody)
 	if err != nil {
-		// fmt.Println(err)
-		return nil, err
+		return err
 	}
-	return rows, nil
+	defer rows.Close()
+	return nil
 }
 
-func (r *OrderRepository) RepositoryUpdateOrder(ID int, body *models.OrderModel) (sql.Result, error) {
+func (r *OrderRepository) RepositoryUpdateOrder(ID int, body *models.UpdateOrderDataStatus) (int64, error) {
 	query := `update orders
 		set status = :Status`
 	params := make(map[string]interface{})
 	params["Status"] = body.Status
 	params["Id"] = ID
 	query += `, updated_at = NOW() WHERE id = :Id`
-	fmt.Println(query)
+	// fmt.Println(query)
 	result, err := r.NamedExec(query, params)
-	return result, err
+	if err != nil {
+		return 0, err
+	}
+	rowsAffected, _ := result.RowsAffected()
+	return rowsAffected, err
 }
 
 // func (r *OrderRepository) RepositoryUpdateOrderDetail(ID int, body *models.OrderDetailModel) error {
@@ -312,7 +322,7 @@ func (r *OrderRepository) RepositoryUpdateOrder(ID int, body *models.OrderModel)
 // 	return nil
 // }
 
-func (r *OrderRepository) RepositoryDeleteProduct(ID int) (sql.Result, error) {
+func (r *OrderRepository) RepositoryDeleteOrder(ID int) (int64, error) {
 	query := `
         Update orders
 		set deleted_at = now()
@@ -320,7 +330,11 @@ func (r *OrderRepository) RepositoryDeleteProduct(ID int) (sql.Result, error) {
 		returning id;
     `
 	result, err := r.Exec(query, ID)
-	return result, err
+	if err != nil {
+		return 0, err
+	}
+	rowsAffected, _ := result.RowsAffected()
+	return rowsAffected, err
 }
 
 func (r *OrderRepository) RepositoryCountOrder(body *models.QueryParamsOrder) ([]int, error) {
@@ -342,4 +356,12 @@ func (r *OrderRepository) RepositoryCountOrder(body *models.QueryParamsOrder) ([
 		return nil, err
 	}
 	return total_data, nil
+}
+
+func (r *OrderRepository) Begin() (*sqlx.Tx, error) {
+	tx, errTx := r.Beginx()
+	if errTx != nil {
+		return nil, errTx
+	}
+	return tx, nil
 }

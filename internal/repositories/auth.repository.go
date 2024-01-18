@@ -11,11 +11,17 @@ type AuthRepository struct {
 	*sqlx.DB
 }
 
+type IAuthRepository interface {
+	RepositoryRegister(body *models.AuthRegister, hashedPassword string) error
+	RepositorySelectPrivateData(body *models.AuthLogin) ([]models.Auth, error)
+	RepositoryLogout(token string) error
+}
+
 func InitializeAuthRepository(db *sqlx.DB) *AuthRepository {
 	return &AuthRepository{db}
 }
 
-func (r *AuthRepository) RepositoryRegister(body *models.Auth, hashedPassword string) error {
+func (r *AuthRepository) RepositoryRegister(body *models.AuthRegister, hashedPassword string) error {
 	query := `
 	insert into users(full_name, email, user_type, password_user) VALUES ($1, $2, 'Normal User', $3)
     `

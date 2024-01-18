@@ -15,10 +15,10 @@ import (
 )
 
 type HandlerProduct struct {
-	*repositories.ProductRepository
+	repositories.IProductRepository
 }
 
-func InitializeHandler(r *repositories.ProductRepository) *HandlerProduct {
+func InitializeHandler(r repositories.IProductRepository) *HandlerProduct {
 	return &HandlerProduct{r}
 }
 
@@ -29,13 +29,13 @@ func (h *HandlerProduct) GetProduct(ctx *gin.Context) {
 		log.Println(err.Error())
 		return
 	}
-	if query.ProductName != "" {
-		isValid := helpers.ValidateInput(query.ProductName)
-		if !isValid {
-			ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Wrong input for product name", nil, nil))
-			return
-		}
-	}
+	// if query.ProductName != "" {
+	// 	isValid := helpers.ValidateInput(query.ProductName)
+	// 	if !isValid {
+	// 		ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Wrong input for product name", nil, nil))
+	// 		return
+	// 	}
+	// }
 	if query.MaximumPrice != 0 && query.MinimumPrice != 0 {
 		if query.MaximumPrice < query.MinimumPrice {
 			ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Maximum price must greater than minimum price", nil, nil))
@@ -48,34 +48,34 @@ func (h *HandlerProduct) GetProduct(ctx *gin.Context) {
 		return
 	}
 	result, err := h.RepositoryGet(&query)
-	data, _ := h.RepositoryCountProduct(&query)
 	if err != nil {
 		if strings.Contains(err.Error(), "trailing junk after numeric literal") {
 			ctx.JSON(http.StatusBadRequest, helpers.NewResponse("trailing junk after numeric literal", nil, nil))
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
 		log.Println(err.Error())
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
 		return
 	}
+	data, _ := h.RepositoryCountProduct(&query)
 	if len(result) == 0 {
 		ctx.JSON(http.StatusNotFound, helpers.NewResponse("Data not found", nil, nil))
 		return
 	}
-	meta := helpers.GetPagination(ctx, data, query.Page)
+	meta := helpers.GetPagination(ctx, data, query.Page, 6)
 	ctx.JSON(http.StatusOK, helpers.NewResponse("Successfully Get Product", result, &meta))
 }
 
 func (h *HandlerProduct) GetProductDetail(ctx *gin.Context) {
 	ID, _ := strconv.Atoi(ctx.Param("id"))
 	result, err := h.RepositoryGetDetail(ID)
-	if len(result) == 0 {
-		ctx.JSON(http.StatusNotFound, helpers.NewResponse("Data not found", nil, nil))
-		return
-	}
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
 		log.Println(err.Error())
+		return
+	}
+	if len(result) == 0 {
+		ctx.JSON(http.StatusNotFound, helpers.NewResponse("Data not found", nil, nil))
 		return
 	}
 	ctx.JSON(http.StatusOK, helpers.NewResponse("Successfully Get Product", result, nil))
@@ -89,10 +89,17 @@ func (h *HandlerProduct) CreateProduct(ctx *gin.Context) {
 		return
 	}
 	if _, err := govalidator.ValidateStruct(&newProduct); err != nil {
-		ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Wrong inpu after validation", nil, nil))
+		ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Wrong input after validation", nil, nil))
 		log.Println(err.Error())
 		return
 	}
+	// if newProduct.Product_name != "" {
+	// 	isValid := helpers.ValidateInput(newProduct.Product_name)
+	// 	if !isValid {
+	// 		ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Wrong input for product name", nil, nil))
+	// 		return
+	// 	}
+	// }
 	//cloud upload
 	cld, errCloud := helpers.InitCloudinary()
 	if errCloud != nil {
@@ -195,9 +202,10 @@ func (h *HandlerProduct) UpdateProduct(ctx *gin.Context) {
 		log.Println(err.Error())
 		return
 	}
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
-		ctx.JSON(http.StatusNotFound, helpers.NewResponse("Product not found to update", nil, nil))
+	// rowsAffected, _ := result.RowsAffected()
+	var dataNotFound int64 = 1
+	if result < dataNotFound {
+		ctx.JSON(http.StatusNotFound, helpers.NewResponse("Product not found to update", result, nil))
 		return
 	}
 	ctx.JSON(http.StatusCreated, helpers.NewResponse("Successfully update product", updateProduct, nil))
@@ -208,20 +216,16 @@ func (h *HandlerProduct) DeleteProduct(ctx *gin.Context) {
 	result, err := h.RepositoryDeleteProduct(ID)
 	if err != nil {
 		log.Print(err)
-		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Erver Error", nil, nil))
-		return
-	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
-		log.Print(err.Error())
 		return
 	}
-	if rowsAffected == 0 {
+	// rowsAffected, err := result.RowsAffected()
+	var dataNotFound int64 = 1
+	if result < dataNotFound {
 		ctx.JSON(http.StatusNotFound, helpers.NewResponse("Product that will deleted not found", nil, nil))
 		return
 	}
-	ctx.JSON(http.StatusOK, helpers.NewResponse("Successfully delete product", ID, nil))
+	ctx.JSON(http.StatusOK, helpers.NewResponse("Successfully delete product", nil, nil))
 }
 
 func (h *HandlerProduct) GetStatisticProduct(ctx *gin.Context) {
