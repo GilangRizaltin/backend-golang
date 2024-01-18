@@ -1,32 +1,32 @@
-![Logo](https://dev-to-uploads.s3.amazonaws.com/uploads/articles/th5xamgrr6se0x5ro4g6.png)
+![Logo](https://res.cloudinary.com/doncmmfaa/image/upload/v1705476586/samples/Frame_13_ksk8wi.png)
 
 # Backend Coffee Shop with Golang
 
-This project is about to show you on my performance in developing backend architecture using Golang. It has couple of features and API also several security authorization. It is a website for purchasing cinema tickets with main features including a list of films and their details, ordering cinema tickets based on the desired time and place. There are 2 roles, namely Consumer and Admin. Its has authentication and authorization for several accessible pages based on role.
+This project is about to show you on my performance in developing backend architecture using Golang. It has couple of features and API also several security authorization. It is a website for purchasing cinema tickets with main features including a list of films and their details, ordering cinema tickets based on the desired time and place. There are 2 roles, namely Normal user and Admin. Its has authentication and authorization for several accessible pages based on role.
 
 ## Features
 
-- Gin Gonic
+- Gin Gonic \
   Gin Gonic is a lightweight and fast web framework for Golang. It simplifies the process of building web applications by providing essential routing features and middleware support. In your code, import Gin and utilize its powerful features to effortlessly handle HTTP requests and responses.
 
-- JSON Web Token
+- JSON Web Token \
   JSON Web Tokens provide a secure and compact way to transmit information between parties. In your project, JWTs can be employed for user authentication and authorization. Generate a token when a user logs in and include it in subsequent requests to ensure secure communication between the client and server.
 
-- Cloudinary
+- Cloudinary \
   Cloudinary is a cloud-based service for managing and optimizing images and videos. Integrate Cloudinary into your project to effortlessly upload, store, and manipulate media assets. Leverage its API to dynamically transform images, ensuring optimal performance and user experience.
 
-- Midtrans
+- Midtrans \
   Midtrans is a payment gateway service that simplifies online transactions. Integrate Midtrans into your application to facilitate secure and seamless payment processing. Utilize its APIs to handle payment requests, confirmations, and other transactions, providing users with a reliable and efficient payment experience.
 
-- Govalidator
+- Govalidator \
   Govalidator is a versatile validation library for Golang. Integrate it into your project to easily validate user input and ensure data integrity. Employ Govalidator's functions to validate fields such as email addresses, URLs, and other form inputs, enhancing the robustness of your application.
 
 ## Installation
 
-Install my-project with npm
+Install my-project with dependencies based on go mod
 
 ```bash
-  go mod Install
+  go get .
 ```
 
 ## API Reference
@@ -100,7 +100,7 @@ Install my-project with npm
 
 ## Documentation
 
-[Postman Documentation](https://documenter.getpostman.com/view/29696636/2s9Ykn8MDe)
+[Postman Documentation](https://documenter.getpostman.com/view/29696636/2s9YsRbURh)
 
 ## Environment Variables
 
@@ -136,7 +136,7 @@ Go to the project directory
 Install dependencies
 
 ```bash
-  go mod install
+  go get .
 ```
 
 Start the server
@@ -156,6 +156,10 @@ To run tests, run the following command
 ## Front End Project
 
 https://github.com/GilangRizaltin/Coffee-Shop-React
+
+## Back End Project with Express Js
+
+https://github.com/GilangRizaltin/CoffeeShop
 
 ## Support
 
