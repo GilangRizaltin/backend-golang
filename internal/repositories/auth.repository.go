@@ -12,8 +12,9 @@ type AuthRepository struct {
 }
 
 type IAuthRepository interface {
-	RepositoryRegister(body *models.AuthRegister, hashedPassword string) error
-	RepositorySelectPrivateData(body *models.AuthLogin) ([]models.Auth, error)
+	RepositoryRegister(body *models.AuthRegister, hashedPassword string, OTP int) error
+	RepositorySelectPrivateData(email string) ([]models.Auth, error)
+	RepositoryActivateUser(email string) (int64, error)
 	RepositoryLogout(token string) error
 }
 
@@ -21,9 +22,9 @@ func InitializeAuthRepository(db *sqlx.DB) *AuthRepository {
 	return &AuthRepository{db}
 }
 
-func (r *AuthRepository) RepositoryRegister(body *models.AuthRegister, hashedPassword string) error {
+func (r *AuthRepository) RepositoryRegister(body *models.AuthRegister, hashedPassword string, OTP int) error {
 	query := `
-	insert into users(full_name, email, user_type, password_user) VALUES ($1, $2, 'Normal User', $3)
+	insert into users(full_name, email, user_type, password_user, otp) VALUES ($1, $2, 'Normal User', $3, $4)
     `
 	values := []any{body.Full_name, body.Email, hashedPassword}
 	_, err := r.Exec(query, values...)
@@ -33,7 +34,7 @@ func (r *AuthRepository) RepositoryRegister(body *models.AuthRegister, hashedPas
 	return nil
 }
 
-func (r *AuthRepository) RepositorySelectPrivateData(body *models.AuthLogin) ([]models.Auth, error) {
+func (r *AuthRepository) RepositorySelectPrivateData(email string) ([]models.Auth, error) {
 	data := []models.Auth{}
 	query := `select u.id as "No",
 	u.full_name as "Full_name",
@@ -43,7 +44,7 @@ func (r *AuthRepository) RepositorySelectPrivateData(body *models.AuthLogin) ([]
 	u.otp as "Otp"
 	from users u
 	where u.email = $1`
-	values := []any{body.Email}
+	values := []any{email}
 	err := r.Select(&data, query, values...)
 	if err != nil {
 		fmt.Println(err)
@@ -52,12 +53,13 @@ func (r *AuthRepository) RepositorySelectPrivateData(body *models.AuthLogin) ([]
 	return data, nil
 }
 
-func (r *AuthRepository) RepositoryForgetPassword() {
-
-}
-
-func (r *AuthRepository) RepositoryResetPassword() {
-
+func (r *AuthRepository) RepositoryActivateUser(email string) (int64, error) {
+	const sql = `update users set activated = true where email = :Email`
+	params := make(map[string]interface{})
+	params["Email"] = email
+	result, err := r.NamedExec(sql, params)
+	rowsAffected, _ := result.RowsAffected()
+	return rowsAffected, err
 }
 
 func (r *AuthRepository) RepositoryLogout(token string) error {

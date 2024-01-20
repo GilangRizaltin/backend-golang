@@ -7,7 +7,9 @@ import (
 	"Backend_Golang/pkg"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/asaskevich/govalidator"
@@ -53,8 +55,13 @@ func (h *HandlerAuth) Register(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Error in hashing password", nil, nil))
 		return
 	}
-	err = h.RepositoryRegister(body, hashedPassword)
+	otp := 100000 + rand.Intn(900000)
+	err = h.RepositoryRegister(body, hashedPassword, otp)
 	if err != nil {
+		if strings.Contains(err.Error(), "users_user_name_key") {
+			ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Username already used", nil, nil))
+			return
+		}
 		if strings.Contains(err.Error(), "users_email_key") {
 			ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Email already used", nil, nil))
 			return
@@ -62,7 +69,7 @@ func (h *HandlerAuth) Register(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
 		return
 	}
-	ctx.JSON(http.StatusCreated, helpers.NewResponse("Successfully register user", nil, nil))
+	ctx.JSON(http.StatusCreated, helpers.NewResponse("Successfully register user. Checkyour e-mail for activation", nil, nil))
 }
 
 func (h *HandlerAuth) Login(ctx *gin.Context) {
@@ -77,7 +84,7 @@ func (h *HandlerAuth) Login(ctx *gin.Context) {
 		log.Println(err.Error())
 		return
 	}
-	result, err := h.RepositorySelectPrivateData(body)
+	result, err := h.RepositorySelectPrivateData(body.Email)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error in Private data", nil, nil))
 		log.Println(err.Error())
@@ -111,6 +118,38 @@ func (h *HandlerAuth) Login(ctx *gin.Context) {
 	userInfo["type"] = result[0].User_type
 	userInfo["photo_profile"] = result[0].Photo_profile
 	ctx.JSON(http.StatusOK, helpers.NewResponse(fmt.Sprintf("Welcome %s", *result[0].Full_name), userInfo, nil))
+}
+
+func (h *HandlerAuth) ActivateUser(ctx *gin.Context) {
+	email := ctx.Query("email")
+	otp := ctx.Query("otp")
+	dataOtp, _ := strconv.Atoi(otp)
+	result, err := h.RepositorySelectPrivateData(email)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error in Private data", nil, nil))
+		log.Println(err.Error())
+		return
+	}
+	if len(result) == 0 {
+		ctx.JSON(http.StatusNotFound, helpers.NewResponse("Account not found", nil, nil))
+		return
+	}
+	if result[0].Otp != dataOtp {
+		ctx.JSON(http.StatusForbidden, helpers.NewResponse("Incorrect OTP", nil, nil))
+		return
+	}
+	data, err := h.RepositoryActivateUser(email)
+	var dataChange int64 = 1
+	if data < dataChange {
+		ctx.JSON(http.StatusNotFound, helpers.NewResponse("Account not found", nil, nil))
+		return
+	}
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error in Private data", nil, nil))
+		log.Println(err.Error())
+		return
+	}
+	ctx.JSON(http.StatusNotFound, helpers.NewResponse("Activation completed", nil, nil))
 }
 
 func (h *HandlerAuth) Logout(ctx *gin.Context) {

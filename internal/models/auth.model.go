@@ -7,7 +7,7 @@ type Auth struct {
 	Email         string      `db:"Email" form:"Email" json:"Email" valid:"email, required"`
 	Password      string      `db:"Password" form:"Password" json:"Password" valid:"-"`
 	User_type     string      `db:"User_type" form:"User_type" json:"User_type" valid:"-"`
-	Otp           *int        `db:"Otp" form:"Otp" json:"Otp" valid:"-"`
+	Otp           int         `db:"Otp" form:"Otp" json:"Otp" valid:"-"`
 }
 
 type AuthLogin struct {
