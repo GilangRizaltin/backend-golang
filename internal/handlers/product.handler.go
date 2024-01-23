@@ -205,7 +205,7 @@ func (h *HandlerProduct) UpdateProduct(ctx *gin.Context) {
 	// rowsAffected, _ := result.RowsAffected()
 	var dataNotFound int64 = 1
 	if result < dataNotFound {
-		ctx.JSON(http.StatusNotFound, helpers.NewResponse("Product not found to update", result, nil))
+		ctx.JSON(http.StatusNotFound, helpers.NewResponse("Product not found to update", nil, nil))
 		return
 	}
 	ctx.JSON(http.StatusCreated, helpers.NewResponse("Successfully update product", updateProduct, nil))
