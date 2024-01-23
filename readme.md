@@ -116,7 +116,7 @@ To run tests, run the following command
 
 ## Documentation
 
-[Postman Documentation](https://documenter.getpostman.com/view/29696636/2s9YsRbURh)
+[Postman Documentation](https://documenter.getpostman.com/view/29696636/2s9YC8vAtB)
 
 ## Related Project
 
