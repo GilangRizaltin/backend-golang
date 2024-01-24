@@ -12,16 +12,16 @@ This project is about to show you on my performance in developing backend archit
 ## Technologies used in this project
 
 - [Gin Gonic](https://pkg.go.dev/github.com/gin-gonic/gin#section-readme) \
-  A lightweight and fast web framework for Golang. \
+  A lightweight and fast web framework for Golang.
 
 - [JSON Web Token](https://jwt.io/introduction) \
-  Provide a secure and compact way to transmit information between parties. \
+  Provide a secure and compact way to transmit information between parties.
 
 - [Cloudinary](https://cloudinary.com/documentation) \
-  A cloud-based service for managing and optimizing images and videos. \
+  A cloud-based service for managing and optimizing images and videos.
 
 - [Midtrans](https://docs.midtrans.com/) \
-  A payment gateway service that simplifies online transactions. \
+  A payment gateway service that simplifies online transactions.
 
 ## Environment Variables
 
