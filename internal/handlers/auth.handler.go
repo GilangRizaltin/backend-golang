@@ -56,6 +56,13 @@ func (h *HandlerAuth) Register(ctx *gin.Context) {
 		return
 	}
 	otp := 100000 + rand.Intn(900000)
+	// sendTo := []string{body.Email}
+	// errMail := pkg.SendEmail(sendTo, "Welcome", fmt.Sprintf("Your OTP is %d", otp))
+	// if errMail != nil {
+	// 	log.Println(errMail)
+	// 	ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Cannot Send Mail", nil, nil))
+	// 	return
+	// }
 	err = h.RepositoryRegister(body, hashedPassword, otp)
 	if err != nil {
 		if strings.Contains(err.Error(), "users_user_name_key") {
@@ -66,10 +73,12 @@ func (h *HandlerAuth) Register(ctx *gin.Context) {
 			ctx.JSON(http.StatusBadRequest, helpers.NewResponse("Email already used", nil, nil))
 			return
 		}
+		log.Println(err)
 		ctx.JSON(http.StatusInternalServerError, helpers.NewResponse("Internal Server Error", nil, nil))
 		return
 	}
-	ctx.JSON(http.StatusCreated, helpers.NewResponse("Successfully register user. Checkyour e-mail for activation", nil, nil))
+	log.Println(otp)
+	ctx.JSON(http.StatusCreated, helpers.NewResponse("Successfully register user", nil, nil))
 }
 
 func (h *HandlerAuth) Login(ctx *gin.Context) {
@@ -105,6 +114,10 @@ func (h *HandlerAuth) Login(ctx *gin.Context) {
 		ctx.JSON(http.StatusUnauthorized, helpers.NewResponse("Email or password is wrong", nil, nil))
 		return
 	}
+	if !result[0].ActivateUser {
+		ctx.JSON(http.StatusUnauthorized, helpers.NewResponse("Please Activate email first", nil, nil))
+		return
+	}
 	payload := pkg.NewPayload(result[0].Id, result[0].User_type)
 	token, err := payload.GenerateToken()
 	if err != nil {
@@ -122,7 +135,7 @@ func (h *HandlerAuth) Login(ctx *gin.Context) {
 
 func (h *HandlerAuth) ActivateUser(ctx *gin.Context) {
 	email := ctx.Query("email")
-	otp := ctx.Query("otp")
+	otp := ctx.Query("OTP")
 	dataOtp, _ := strconv.Atoi(otp)
 	result, err := h.RepositorySelectPrivateData(email)
 	if err != nil {

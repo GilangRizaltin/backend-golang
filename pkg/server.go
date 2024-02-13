@@ -9,9 +9,9 @@ import (
 )
 
 func Server(router *gin.Engine) *http.Server {
-	var addr string = "localhost:6121"
+	var addr string = "localhost:9000"
 	if os.Getenv("GO_ENV") == "DOCKER" {
-		addr = ":6121"
+		addr = ":9000"
 	}
 	server := &http.Server{
 		Addr:         addr,

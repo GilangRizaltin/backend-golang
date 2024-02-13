@@ -40,6 +40,8 @@ To run this project, you will need to add the following environment variables to
   MIDTRANS_ID_MERCHANT = "YOUR MIDTRANS_ID_MERCHANT"
   MIDTRANS_CLIENT_KEY = "YOUR MIDTRANS_CLIENT_KEY"
   MIDTRANS_SERVER_KEY = "YOUR MIDTRANS_SERVER_KEY"
+  SENDER_EMAIL = "YOUR SENDER_EMAIL"
+  SENDER_PASS = "YOUR SENDER_PASS"
 ```
 
 ## Run Locally

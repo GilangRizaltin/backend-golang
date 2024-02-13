@@ -26,7 +26,7 @@ func (r *AuthRepository) RepositoryRegister(body *models.AuthRegister, hashedPas
 	query := `
 	insert into users(full_name, email, user_type, password_user, otp) VALUES ($1, $2, 'Normal User', $3, $4)
     `
-	values := []any{body.Full_name, body.Email, hashedPassword}
+	values := []any{body.Full_name, body.Email, hashedPassword, OTP}
 	_, err := r.Exec(query, values...)
 	if err != nil {
 		return err
@@ -41,7 +41,8 @@ func (r *AuthRepository) RepositorySelectPrivateData(email string) ([]models.Aut
 	u.user_photo_profile as "Photo_profile",
 	u.password_user as "Password",
 	u.user_type as "User_type",
-	u.otp as "Otp"
+	u.otp as "Otp",
+	u.activated as "activated"
 	from users u
 	where u.email = $1`
 	values := []any{email}
