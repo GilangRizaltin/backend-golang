@@ -3,6 +3,7 @@ package middlewares
 import (
 	"Backend_Golang/internal/repositories"
 	"Backend_Golang/pkg"
+	"log"
 	"net/http"
 	"strings"
 
@@ -62,7 +63,7 @@ func JWTGate(authRepo *repositories.AuthRepository, db *sqlx.DB, allowedRole ...
 				break
 			}
 		}
-
+		log.Println(payload)
 		if !allowed {
 			ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{
 				"message": "Access Denied",
